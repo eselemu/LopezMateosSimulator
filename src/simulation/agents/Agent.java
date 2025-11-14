@@ -6,7 +6,23 @@ public class Agent extends Thread {
         PEDESTRIAN,
         SEMAPHORE
     }
-    public AgentType type;
 
+    public enum AgentState {
+        ACTIVE,
+        WAITING,
+        STOPPED,
+        FINISHED
+    }
+
+    public AgentType type;
     public int id;
+    protected AgentState state;
+    protected volatile boolean running = true;
+
+    public AgentState getAgentState() { return state; }
+
+    public void stopAgent() {
+        running = false;
+        state = AgentState.STOPPED;
+    }
 }
