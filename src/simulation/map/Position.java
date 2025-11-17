@@ -1,5 +1,7 @@
 package simulation.map;
 
+import java.util.Objects;
+
 public class Position {
     public int  x, y;
     public Position(int x, int y){
@@ -17,5 +19,11 @@ public class Position {
             return ((Position) o).x == this.x && ((Position) o).y == this.y;
         }
         return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(x, y);
+        // Alternatively: return 31 * x + y;
     }
 }
