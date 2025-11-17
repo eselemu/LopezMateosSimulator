@@ -37,10 +37,12 @@ public class TrafficSimulationCore {
 
         // Crear 2 carros en posiciones iniciales
         Car car1 = new Car(1, new Position(0, 0), new Position(8, 0));
-        Car car2 = new Car(2, new Position(0, 0), new Position(7, 0));
+        Car car2 = new Car(2, new Position(2, 0), new Position(7, 0));
 
         cars.add(car1);
         cars.add(car2);
+
+        mapManager.registerSemaphore(semaphore);
 
         System.out.println("Simulación inicializada con 2 carros y 1 semáforo");
     }
