@@ -29,8 +29,10 @@ public class StreetSegment {
     }
 
     public void release() {
-        currentOccupancy--;
-        lock.unlock();
+        if (lock.isHeldByCurrentThread()) {
+            currentOccupancy--;
+            lock.unlock();
+        }
     }
 
     public String getSegmentId() { return segmentId; }

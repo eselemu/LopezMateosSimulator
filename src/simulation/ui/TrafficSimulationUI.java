@@ -13,6 +13,9 @@ public class TrafficSimulationUI extends JFrame {
     private TrafficSimulationCore simulation;
     private SimulationPanel simulationPanel;
     private JTextArea logArea;
+    private int carsNumber;
+    private int semaphoresNumber;
+    private int pedestriansNumber;
 
     public TrafficSimulationUI(TrafficSimulationCore simulation) {
         this.simulation = simulation;
@@ -20,39 +23,98 @@ public class TrafficSimulationUI extends JFrame {
     }
 
     private void initializeUI() {
-        setTitle("Simulación de Tráfico - 2 Carros + Semáforo");
+        setTitle("Simulación de Tráfico");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // Panel de simulación
+        // Simulation Panel
         simulationPanel = new SimulationPanel();
         add(simulationPanel, BorderLayout.CENTER);
 
-        // Panel de logs
+        // Logs
         logArea = new JTextArea(10, 40);
         logArea.setEditable(false);
         JScrollPane scrollPane = new JScrollPane(logArea);
         add(scrollPane, BorderLayout.SOUTH);
 
-        // Panel de controles
-        JPanel controlPanel = new JPanel();
+        // Inputs
+        JLabel carLabel = new JLabel("Carros: ");
+        JTextField carNumber = new JTextField("#", 3);
+
+        JLabel semaphoreLabel = new JLabel("Semáforos: ");
+        JTextField semaphoreNumber = new JTextField("#", 3);
+
+        JLabel pedestrianLabel = new JLabel("Peatones: ");
+        JTextField pedestrianNumber = new JTextField("#", 3);
+
         JButton startButton = new JButton("Iniciar");
         JButton stopButton = new JButton("Detener");
 
-        startButton.addActionListener(e -> simulation.startSimulation());
-        stopButton.addActionListener(e -> simulation.stopSimulation());
-
+        // --- Panel superior ---
+        JPanel controlPanel = new JPanel();
+        controlPanel.add(carLabel);
+        controlPanel.add(carNumber);
+        controlPanel.add(semaphoreLabel);
+        controlPanel.add(semaphoreNumber);
+        controlPanel.add(pedestrianLabel);
+        controlPanel.add(pedestrianNumber);
         controlPanel.add(startButton);
         controlPanel.add(stopButton);
         add(controlPanel, BorderLayout.NORTH);
+
+        stopButton.setEnabled(false);
+
+        // Button Action
+        startButton.addActionListener(e -> {
+            String carInput = carNumber.getText();
+            String semInput = semaphoreNumber.getText();
+            String pedInput = pedestrianNumber.getText();
+
+            // Validate inputs before starting simulation
+            if (!isValidNumber(carInput) || !isValidNumber(semInput) || !isValidNumber(pedInput)) {
+                JOptionPane.showMessageDialog(
+                        this,
+                        "Por favor ingresa valores numéricos entre 0 y 9 para todos los campos.",
+                        "Entrada inválida",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                return; // Stop here
+            }
+
+            setInputs(Integer.parseInt(carInput), Integer.parseInt(semInput), Integer.parseInt(pedInput));
+
+            // Initialize and start simulation
+            simulation.initializeSimulation(getInputs()[0], getInputs()[1], getInputs()[2]);
+            simulation.startSimulation();
+
+            startButton.setEnabled(false);
+            stopButton.setEnabled(true);
+        });
+
+        stopButton.addActionListener(e -> {
+            simulation.stopSimulation();
+            startButton.setEnabled(true);
+            stopButton.setEnabled(false);
+        });
 
         pack();
         setSize(800, 600);
         setLocationRelativeTo(null);
 
-        // Timer para actualizar UI
         Timer timer = new Timer(100, e -> updateUI());
         timer.start();
+
+        setVisible(true);
+    }
+
+    public void setInputs(int numCars, int numSemaphores, int numPedestrians){
+        this.carsNumber = numCars;
+        this.semaphoresNumber = numSemaphores;
+        this.pedestriansNumber = numPedestrians;
+    }
+
+    public int[] getInputs(){
+        return new int[]{carsNumber, semaphoresNumber, pedestriansNumber};
     }
 
     private void updateUI() {
@@ -169,4 +231,14 @@ public class TrafficSimulationUI extends JFrame {
             return new Dimension(800, 400);
         }
     }
+
+    public static boolean isValidNumber(String input) {
+        try {
+            int value = Integer.parseInt(input.trim()); // Try to parse
+            return value > -1 && value < 10;            // Check range 0–9
+        } catch (NumberFormatException e) {
+            return false;                               // Not a valid integer
+        }
+    }
+
 }

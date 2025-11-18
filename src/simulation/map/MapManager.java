@@ -4,6 +4,7 @@ import simulation.agents.Car;
 import simulation.agents.SemaphoreSimulation;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class MapManager {
@@ -56,5 +57,15 @@ public class MapManager {
 
     public void registerSemaphore(SemaphoreSimulation semaphore) {
         semaphorePositions.put(semaphore.getPosition(), semaphore);
+    }
+
+    public Map<StreetSegment, Integer> getStreetSegments() {
+        Map<StreetSegment, Integer> streetCount = new HashMap<>();
+
+        for (StreetSegment segment : streetSegments.values()) {
+            streetCount.put(segment, segment.getCurrentOccupancy());
+        }
+
+        return streetCount;
     }
 }
