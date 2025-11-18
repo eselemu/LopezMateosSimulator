@@ -39,13 +39,14 @@ public class TrafficSimulationCore {
         int maxInt = 9;
 
         for (int i = 0; i < carsNumber; i++) {
-            Car car = new Car(i+1, new Position(0, 0), new Position(random.nextInt(0,9), 0));
+            Car car = new Car(i+1, new Position(0, 0), new Position(random.nextInt(6,9), 0));
             cars.add(car);
         }
 
         for (int i = 0; i < semaphoresNumber; i++) {
-            SemaphoreSimulation semaphore = new SemaphoreSimulation(i+1, new Position(random.nextInt(0,9), 0));
+            SemaphoreSimulation semaphore = new SemaphoreSimulation(i+1, new Position(random.nextInt(5,6), 0));
             semaphores.add(semaphore);
+            mapManager.registerSemaphore(semaphore);
         }
 
         // Crear semáforo en posición (5, 0)
