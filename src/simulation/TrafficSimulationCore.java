@@ -61,8 +61,7 @@ public class TrafficSimulationCore {
 //        cars.add(car2);
 //        cars.add(car3);
 
-//        System.out.println("Simulación inicializada con 2 carros y 1 semáforo");
-    }
+}
 
     public void startSimulation(){
         isRunning = true;

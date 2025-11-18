@@ -16,7 +16,8 @@ public class Car extends Agent {
 
     public enum CarState {
         MOVING,
-        WAITING_AT_SEMAPHORE,
+        WAITING,
+        WAITING_SEMAPHORE,
         IN_INTERSECTION,
         FINISHED
     }
@@ -86,7 +87,7 @@ public class Car extends Agent {
 
                         } else {
                             // Segment ocupado, esperar
-                            carState = CarState.WAITING_AT_SEMAPHORE;
+                            carState = CarState.WAITING;
                             System.out.println("Car " + id + " esperando - segmento ocupado: " + segment.getSegmentId());
                             Thread.sleep(500);
                         }
@@ -117,12 +118,15 @@ public class Car extends Agent {
     }
 
     private void checkTrafficLight(Position position) {
+        if(position.x == 5) {
+            System.out.println("Que rollo");
+        }
         SemaphoreSimulation semaphore = mapManager.getSemaphoreAt(position);
         if(semaphore != null && semaphore.getCurrentState() == SemaphoreSimulation.LightState.RED) {
-            carState = CarState.WAITING_AT_SEMAPHORE;
+            carState = CarState.WAITING;
             System.out.println("Car " + id + " esperando en semáforo rojo");
             try {
-                Thread.sleep(2000); // Espera en semáforo rojo
+                Thread.sleep(5000); // Espera en semáforo rojo
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }

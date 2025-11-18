@@ -52,7 +52,8 @@ public class MapManager {
     }
 
     public SemaphoreSimulation getSemaphoreAt(Position position) {
-        return semaphorePositions.get(position);
+        SemaphoreSimulation sem = semaphorePositions.get(position);
+        return sem;
     }
 
     public void registerSemaphore(SemaphoreSimulation semaphore) {

@@ -200,7 +200,8 @@ public class TrafficSimulationUI extends JFrame {
             // Color según estado
             Color carColor = switch(car.getCarState()) {
                 case MOVING -> Color.BLUE;
-                case WAITING_AT_SEMAPHORE -> Color.ORANGE;
+                case WAITING -> Color.ORANGE;
+                case WAITING_SEMAPHORE ->  Color.RED;
                 case IN_INTERSECTION -> Color.CYAN;
                 case FINISHED -> Color.GREEN;
             };
