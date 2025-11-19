@@ -44,7 +44,7 @@ public class TrafficSimulationCore {
         }
 
         for (int i = 0; i < semaphoresNumber; i++) {
-            SemaphoreSimulation semaphore = new SemaphoreSimulation(i+1, new Position(random.nextInt(5,6), 0));
+            SemaphoreSimulation semaphore = new SemaphoreSimulation(i+1, new Position(random.nextInt(2,9), 0));
             semaphores.add(semaphore);
             mapManager.registerSemaphore(semaphore);
         }

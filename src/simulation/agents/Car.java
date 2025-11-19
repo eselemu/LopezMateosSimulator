@@ -75,15 +75,12 @@ public class Car extends Agent {
                                     " - Segment: " + segment.getSegmentId() +
                                     " - Estado: " + carState);
 
-                            // Verificar semáforo
+                            // Verificar semáforo - UPDATED: Now uses proper waiting
                             checkTrafficLight(nextPosition);
 
                             // IMPORTANT: Sleep while HOLDING the lock
                             // This simulates the time spent in this position
                             Thread.sleep(1000);
-
-                            // DON'T release here - we release when moving to next position
-                            // segment.release(); // REMOVE THIS LINE
 
                         } else {
                             // Segment ocupado, esperar
@@ -118,17 +115,27 @@ public class Car extends Agent {
     }
 
     private void checkTrafficLight(Position position) {
-        if(position.x == 5) {
-            System.out.println("Que rollo");
-        }
         SemaphoreSimulation semaphore = mapManager.getSemaphoreAt(position);
-        if(semaphore != null && semaphore.getCurrentState() == SemaphoreSimulation.LightState.RED) {
-            carState = CarState.WAITING;
-            System.out.println("Car " + id + " esperando en semáforo rojo");
-            try {
-                Thread.sleep(5000); // Espera en semáforo rojo
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+        if(semaphore != null) {
+            if(semaphore.getCurrentState() == SemaphoreSimulation.LightState.RED) {
+                carState = CarState.WAITING_SEMAPHORE;
+                System.out.println("Car " + id + " detectó semáforo rojo en posición " + position + ", esperando...");
+
+                try {
+                    // Wait for green light using Condition.await()
+                    semaphore.waitForGreenLight();
+
+                    // When we get here, the light is green
+                    carState = CarState.MOVING;
+                    System.out.println("Car " + id + " puede avanzar - semáforo verde!");
+
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.out.println("Car " + id + " interrumpido mientras esperaba semáforo");
+                }
+            } else {
+                carState = CarState.MOVING;
+                System.out.println("Car " + id + " semáforo verde, avanzando...");
             }
         } else {
             carState = CarState.MOVING;

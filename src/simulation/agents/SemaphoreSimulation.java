@@ -2,6 +2,9 @@ package simulation.agents;
 
 import simulation.map.Position;
 
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+
 public class SemaphoreSimulation extends Agent {
     public enum LightState {
         GREEN(5000),    // 5 segundos
@@ -23,6 +26,10 @@ public class SemaphoreSimulation extends Agent {
     private Position position;
     private long lastChangeTime;
 
+    // New: Condition for waiting cars
+    private final ReentrantLock stateLock;
+    private final Condition greenLightCondition;
+
     public SemaphoreSimulation(int id, Position position){
         this.id = id;
         this.position = position;
@@ -30,6 +37,10 @@ public class SemaphoreSimulation extends Agent {
         this.state = AgentState.ACTIVE;
         this.currentState = LightState.RED; // Empezar en rojo
         this.lastChangeTime = System.currentTimeMillis();
+
+        // Initialize lock and condition
+        this.stateLock = new ReentrantLock();
+        this.greenLightCondition = stateLock.newCondition();
     }
 
     @Override
@@ -55,27 +66,73 @@ public class SemaphoreSimulation extends Agent {
     }
 
     private void changeToNextState() {
-        switch(currentState) {
-            case GREEN:
-                currentState = LightState.YELLOW;
-                break;
-            case YELLOW:
-                currentState = LightState.RED;
-                break;
-            case RED:
-                currentState = LightState.GREEN;
-                break;
-        }
+        stateLock.lock();
+        try {
+            switch(currentState) {
+                case GREEN:
+                    currentState = LightState.YELLOW;
+                    break;
+                case YELLOW:
+                    currentState = LightState.RED;
+                    break;
+                case RED:
+                    currentState = LightState.GREEN;
+                    // Signal all waiting cars when light turns green
+                    greenLightCondition.signalAll();
+                    System.out.println("Semáforo " + id + " señaló a todos los carros en espera");
+                    break;
+            }
 
-        lastChangeTime = System.currentTimeMillis();
-        System.out.println("Semáforo " + id + " cambió a: " + currentState);
+            lastChangeTime = System.currentTimeMillis();
+            System.out.println("Semáforo " + id + " cambió a: " + currentState);
+        } finally {
+            stateLock.unlock();
+        }
+    }
+
+    // New method for cars to wait for green light
+    public void waitForGreenLight() throws InterruptedException {
+        stateLock.lock();
+        try {
+            while (currentState != LightState.GREEN && running) {
+                System.out.println("Carro esperando en semáforo " + id + " (estado: " + currentState + ")");
+                greenLightCondition.await(); // Wait until signaled
+            }
+            System.out.println("Carro puede avanzar en semáforo " + id + " (estado: " + currentState + ")");
+        } finally {
+            stateLock.unlock();
+        }
+    }
+
+    // New method for cars to check if they can proceed without waiting
+    public boolean canProceed() {
+        stateLock.lock();
+        try {
+            return currentState == LightState.GREEN;
+        } finally {
+            stateLock.unlock();
+        }
     }
 
     public void stopSemaphore() {
         stopAgent();
+        // Wake up all waiting cars when stopping
+        stateLock.lock();
+        try {
+            greenLightCondition.signalAll();
+        } finally {
+            stateLock.unlock();
+        }
     }
 
     // Getters para UI
-    public LightState getCurrentState() { return currentState; }
+    public LightState getCurrentState() {
+        stateLock.lock();
+        try {
+            return currentState;
+        } finally {
+            stateLock.unlock();
+        }
+    }
     public Position getPosition() { return position; }
 }
