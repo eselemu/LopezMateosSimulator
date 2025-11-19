@@ -6,10 +6,14 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class SemaphoreSimulation extends Agent {
+    private static int redLightTimer;
+    private static int yellowLightTimer;
+    private static int greenLightTimer;
+    
     public enum LightState {
-        GREEN(5000),    // 5 segundos
-        YELLOW(2000),   // 2 segundos
-        RED(5000);      // 5 segundos
+        GREEN(greenLightTimer * 1000L),    // Time in seconds, converted into ms
+        YELLOW(yellowLightTimer * 1000L),
+        RED(redLightTimer * 1000L);
 
         private final long duration;
 
@@ -21,6 +25,8 @@ public class SemaphoreSimulation extends Agent {
             return duration;
         }
     }
+    
+    
 
     private LightState currentState;
     private Position position;
@@ -135,4 +141,10 @@ public class SemaphoreSimulation extends Agent {
         }
     }
     public Position getPosition() { return position; }
+    
+    public static void setLightsTimer(int[] timers){
+        greenLightTimer = timers[0];
+        yellowLightTimer = timers[1];
+        redLightTimer = timers[2];
+    }
 }

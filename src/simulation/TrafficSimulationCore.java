@@ -18,7 +18,7 @@ public class TrafficSimulationCore {
     private boolean isRunning;
     private MapManager mapManager;
     public static volatile Map<Thread.State, Integer> counts;
-
+    private int[] lightsTimers;
     private TrafficSimulationCore(){
         cars = new ArrayList<>();
         semaphores = new ArrayList<>();
@@ -31,36 +31,25 @@ public class TrafficSimulationCore {
         return instance;
     }
 
-    public void initializeSimulation(int carsNumber, int semaphoresNumber, int pedestriansNumber){
-        // Crear mapa simple: 2 bloques con semáforo en medio
+    public void initializeSimulation(int carsNumber, int semaphoresNumber, int pedestriansNumber, int greenLightTimer, int yellowLightTimer, int redLightTimer){
         mapManager.initializeSimpleMap();
+
+        int[] lightsTimers = {greenLightTimer, yellowLightTimer, redLightTimer};
+        SemaphoreSimulation.setLightsTimer(lightsTimers);
 
         Random random = new Random();
         int maxInt = 9;
 
         for (int i = 0; i < carsNumber; i++) {
-            Car car = new Car(i+1, new Position(0, 0), new Position(random.nextInt(6,9), 0));
+            Car car = new Car(i+1, new Position(0, 0), new Position(random.nextInt(6,maxInt), 0));
             cars.add(car);
         }
 
         for (int i = 0; i < semaphoresNumber; i++) {
-            SemaphoreSimulation semaphore = new SemaphoreSimulation(i+1, new Position(random.nextInt(2,9), 0));
+            SemaphoreSimulation semaphore = new SemaphoreSimulation(i+1, new Position(random.nextInt(2,maxInt), 0));
             semaphores.add(semaphore);
             mapManager.registerSemaphore(semaphore);
         }
-
-        // Crear semáforo en posición (5, 0)
-//        SemaphoreSimulation semaphore = new SemaphoreSimulation(1, new Position(5, 0));
-//        semaphores.add(semaphore);
-//
-//        // Crear 2 carros en posiciones iniciales
-//        Car car1 = new Car(1, new Position(0, 0), new Position(8, 0));
-//        Car car2 = new Car(2, new Position(0, 0), new Position(7, 0));
-//        Car car3 = new Car(3, new Position(0, 0), new Position(6, 0));
-//
-//        cars.add(car1);
-//        cars.add(car2);
-//        cars.add(car3);
 
 }
 

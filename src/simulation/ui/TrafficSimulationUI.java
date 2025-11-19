@@ -16,6 +16,9 @@ public class TrafficSimulationUI extends JFrame {
     private int carsNumber;
     private int semaphoresNumber;
     private int pedestriansNumber;
+    private int greenTimerSemInput;
+    private int yellowTimerSemInput;
+    private int redTimerSemInput;
 
     public TrafficSimulationUI(TrafficSimulationCore simulation) {
         this.simulation = simulation;
@@ -47,17 +50,35 @@ public class TrafficSimulationUI extends JFrame {
         JLabel pedestrianLabel = new JLabel("Peatones: ");
         JTextField pedestrianNumber = new JTextField("#", 3);
 
+        JLabel greenTimerLabel = new JLabel("Green Light Timer (s): ");
+        JTextField greenTimerInput = new JTextField("#", 3);
+
+        JLabel yellowTimerLabel = new JLabel("Yellow Light Timer (s): ");
+        JTextField yellowTimerInput = new JTextField("#", 3);
+
+        JLabel redTimerLabel = new JLabel("Red Light Timer (s): ");
+        JTextField redTimerInput = new JTextField("#", 3);
+
         JButton startButton = new JButton("Iniciar");
         JButton stopButton = new JButton("Detener");
 
         // --- Panel superior ---
         JPanel controlPanel = new JPanel();
+        controlPanel.setPreferredSize(new Dimension(this.getWidth(), 100));
         controlPanel.add(carLabel);
         controlPanel.add(carNumber);
         controlPanel.add(semaphoreLabel);
         controlPanel.add(semaphoreNumber);
         controlPanel.add(pedestrianLabel);
         controlPanel.add(pedestrianNumber);
+
+        controlPanel.add(greenTimerLabel);
+        controlPanel.add(greenTimerInput);
+        controlPanel.add(yellowTimerLabel);
+        controlPanel.add(yellowTimerInput);
+        controlPanel.add(redTimerLabel);
+        controlPanel.add(redTimerInput);
+
         controlPanel.add(startButton);
         controlPanel.add(stopButton);
         add(controlPanel, BorderLayout.NORTH);
@@ -69,9 +90,12 @@ public class TrafficSimulationUI extends JFrame {
             String carInput = carNumber.getText();
             String semInput = semaphoreNumber.getText();
             String pedInput = pedestrianNumber.getText();
+            String greenSemInput = greenTimerInput.getText();
+            String yellowSemInput = yellowTimerInput.getText();
+            String redSemInput = redTimerInput.getText();
 
             // Validate inputs before starting simulation
-            if (!isValidNumber(carInput) || !isValidNumber(semInput) || !isValidNumber(pedInput)) {
+            if (!isValidNumber(carInput) || !isValidNumber(semInput) || !isValidNumber(pedInput) || !isValidNumber(greenSemInput) || !isValidNumber(yellowSemInput) || !isValidNumber(redSemInput)) {
                 JOptionPane.showMessageDialog(
                         this,
                         "Por favor ingresa valores numéricos entre 0 y 9 para todos los campos.",
@@ -81,10 +105,10 @@ public class TrafficSimulationUI extends JFrame {
                 return; // Stop here
             }
 
-            setInputs(Integer.parseInt(carInput), Integer.parseInt(semInput), Integer.parseInt(pedInput));
+            setInputs(Integer.parseInt(carInput), Integer.parseInt(semInput), Integer.parseInt(pedInput), Integer.parseInt(greenSemInput), Integer.parseInt(yellowSemInput), Integer.parseInt(redSemInput));
 
             // Initialize and start simulation
-            simulation.initializeSimulation(getInputs()[0], getInputs()[1], getInputs()[2]);
+            simulation.initializeSimulation(getInputs()[0], getInputs()[1], getInputs()[2], getInputs()[3], getInputs()[4], getInputs()[5]);
             simulation.startSimulation();
 
             startButton.setEnabled(false);
@@ -98,7 +122,7 @@ public class TrafficSimulationUI extends JFrame {
         });
 
         pack();
-        setSize(800, 600);
+        setSize(850, 600);
         setLocationRelativeTo(null);
 
         Timer timer = new Timer(100, e -> updateUI());
@@ -107,14 +131,17 @@ public class TrafficSimulationUI extends JFrame {
         setVisible(true);
     }
 
-    public void setInputs(int numCars, int numSemaphores, int numPedestrians){
+    public void setInputs(int numCars, int numSemaphores, int numPedestrians, int greenTimerSemInput, int yellowTimerSemInput, int redTimerSemInput){
         this.carsNumber = numCars;
         this.semaphoresNumber = numSemaphores;
         this.pedestriansNumber = numPedestrians;
+        this.greenTimerSemInput = greenTimerSemInput;
+        this.yellowTimerSemInput = yellowTimerSemInput;
+        this.redTimerSemInput = redTimerSemInput;
     }
 
     public int[] getInputs(){
-        return new int[]{carsNumber, semaphoresNumber, pedestriansNumber};
+        return new int[]{carsNumber, semaphoresNumber, pedestriansNumber, greenTimerSemInput, yellowTimerSemInput, redTimerSemInput};
     }
 
     private void updateUI() {
