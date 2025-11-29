@@ -37,6 +37,9 @@ public class AgentVisualizer extends JFrame implements Runnable {
         JScrollPane scrollPane = new JScrollPane(jTable);
         add(scrollPane, BorderLayout.CENTER);
 
+
+
+
         setVisible(true);
     }
 

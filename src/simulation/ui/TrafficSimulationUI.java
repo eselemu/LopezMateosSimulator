@@ -263,7 +263,7 @@ public class TrafficSimulationUI extends JFrame {
     public static boolean isValidNumber(String input) {
         try {
             int value = Integer.parseInt(input.trim()); // Try to parse
-            return value > -1 && value < 10;            // Check range 0–9
+            return value > -1 && value < 10000;            // Check range 0–9
         } catch (NumberFormatException e) {
             return false;                               // Not a valid integer
         }

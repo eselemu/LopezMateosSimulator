@@ -113,8 +113,49 @@ public class TrafficSimulationCore {
 //            counts.put(state, counts.getOrDefault(state, 0) + 1);
 //        }
 
+//        for (Truck truck : trucks) {
+//            Thread.State state = truck.getState();
+//            counts.put(state, counts.getOrDefault(state, 0) + 1);
+//        }
+
         return counts;
     }
+
+    public Map<Car.CarState, Integer> getCarStateCounts() {
+        Map<Car.CarState, Integer> counts = new HashMap<>();
+        for (Car car : cars) {
+            Car.CarState state = car.getCarState();
+            counts.put(state, counts.getOrDefault(state, 0) + 1);
+        }
+        return counts;
+    }
+
+    public Map<SemaphoreSimulation.LightState, Integer> getSemStateCounts() {
+        Map<SemaphoreSimulation.LightState, Integer> counts = new HashMap<>();
+        for (SemaphoreSimulation sem : semaphores) {
+            SemaphoreSimulation.LightState state = sem.getCurrentState();
+            counts.put(state, counts.getOrDefault(state, 0) + 1);
+        }
+        return counts;
+    }
+
+    public Map<Thread.State, Integer> getPedestrianStateCounts(){
+        Map<Thread.State, Integer> counts = new HashMap<>();
+        for (Pedestrian pedestrian : pedestrians) {
+            Thread.State state = pedestrian.getState();
+            counts.put(state, counts.getOrDefault(state, 0) + 1);
+        }
+        return counts;
+    }
+
+//    public Map<Truck.TruckState, Integer> getTruckStateCounts() {
+//        Map<Truck.TruckState, Integer> counts = new HashMap<>();
+//        for (Truck car : cars) {
+//            Truck.TruckState state = car.getTruckState();
+//            counts.put(state, counts.getOrDefault(state, 0) + 1);
+//        }
+//        return counts;
+//    }
 
     public Map<String, Integer> getAgentCount(){
         Map<String, Integer> counts = new HashMap<>();
