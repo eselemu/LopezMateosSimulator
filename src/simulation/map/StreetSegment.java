@@ -16,22 +16,40 @@ public class StreetSegment {
     }
 
     public boolean tryAcquire() {
+        System.out.println("[DEBUG] Thread " + Thread.currentThread().getName() +
+                " trying to acquire " + segmentId);
         if(lock.tryLock()) {
+            System.out.println("[DEBUG] Thread " + Thread.currentThread().getName() +
+                    " got lock on " + segmentId + ", occupancy=" + currentOccupancy +
+                    ", capacity=" + capacity);
             if(currentOccupancy < capacity) {
                 currentOccupancy++;
+                System.out.println("[DEBUG] Thread " + Thread.currentThread().getName() +
+                        " ACQUIRED " + segmentId + ", new occupancy=" + currentOccupancy);
                 return true;
             } else {
+                System.out.println("[DEBUG] Thread " + Thread.currentThread().getName() +
+                        " FAILED (at capacity) " + segmentId);
                 lock.unlock();
                 return false;
             }
         }
+        System.out.println("[DEBUG] Thread " + Thread.currentThread().getName() +
+                " couldn't get lock on " + segmentId + " (already locked)");
         return false;
     }
 
     public void release() {
+        System.out.println("[DEBUG] Thread " + Thread.currentThread().getName() +
+                " releasing " + segmentId);
         if (lock.isHeldByCurrentThread()) {
             currentOccupancy--;
             lock.unlock();
+            System.out.println("[DEBUG] Thread " + Thread.currentThread().getName() +
+                    " RELEASED " + segmentId + ", new occupancy=" + currentOccupancy);
+        } else {
+            System.out.println("[DEBUG] Thread " + Thread.currentThread().getName() +
+                    " tried to release " + segmentId + " but doesn't hold the lock!");
         }
     }
 

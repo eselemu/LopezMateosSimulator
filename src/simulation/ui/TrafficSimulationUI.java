@@ -3,6 +3,7 @@ package simulation.ui;
 import simulation.TrafficSimulationCore;
 import simulation.agents.Car;
 import simulation.agents.SemaphoreSimulation;
+import simulation.agents.Truck;
 import simulation.map.Position;
 
 import javax.swing.*;
@@ -42,22 +43,22 @@ public class TrafficSimulationUI extends JFrame {
 
         // Inputs
         JLabel carLabel = new JLabel("Carros: ");
-        JTextField carNumber = new JTextField("#", 3);
+        JTextField carNumber = new JTextField("0", 3);
 
         JLabel semaphoreLabel = new JLabel("Semáforos: ");
-        JTextField semaphoreNumber = new JTextField("#", 3);
+        JTextField semaphoreNumber = new JTextField("0", 3);
 
         JLabel pedestrianLabel = new JLabel("Peatones: ");
-        JTextField pedestrianNumber = new JTextField("#", 3);
+        JTextField pedestrianNumber = new JTextField("0", 3);
 
         JLabel greenTimerLabel = new JLabel("Green Light Timer (s): ");
-        JTextField greenTimerInput = new JTextField("#", 3);
+        JTextField greenTimerInput = new JTextField("2", 3);
 
         JLabel yellowTimerLabel = new JLabel("Yellow Light Timer (s): ");
-        JTextField yellowTimerInput = new JTextField("#", 3);
+        JTextField yellowTimerInput = new JTextField("1", 3);
 
         JLabel redTimerLabel = new JLabel("Red Light Timer (s): ");
-        JTextField redTimerInput = new JTextField("#", 3);
+        JTextField redTimerInput = new JTextField("5", 3);
 
         JButton startButton = new JButton("Iniciar");
         JButton stopButton = new JButton("Detener");
@@ -108,7 +109,7 @@ public class TrafficSimulationUI extends JFrame {
             setInputs(Integer.parseInt(carInput), Integer.parseInt(semInput), Integer.parseInt(pedInput), Integer.parseInt(greenSemInput), Integer.parseInt(yellowSemInput), Integer.parseInt(redSemInput));
 
             // Initialize and start simulation
-            simulation.initializeSimulation(getInputs()[0], getInputs()[1], getInputs()[2], getInputs()[3], getInputs()[4], getInputs()[5]);
+            simulation.initializeSimulation(getInputs()[0], 2, getInputs()[1], getInputs()[2], getInputs()[3], getInputs()[4], getInputs()[5]);
             simulation.startSimulation();
 
             startButton.setEnabled(false);
@@ -178,11 +179,16 @@ public class TrafficSimulationUI extends JFrame {
 
         private void drawAgents(Graphics g) {
             List<Car> cars = simulation.getCars();
+            List<Truck> trucks = simulation.getTrucks();
             List<SemaphoreSimulation> semaphores = simulation.getSemaphores();
 
             // Dibujar semáforos
             for(SemaphoreSimulation semaphoreSimulation : semaphores) {
                 drawSemaphore(g, semaphoreSimulation);
+            }
+
+            for(Truck truck : trucks) {
+                drawTruck(g, truck);
             }
 
             // Dibujar carros
@@ -217,6 +223,52 @@ public class TrafficSimulationUI extends JFrame {
             // Etiqueta
             g.setColor(Color.BLACK);
             g.drawString("S" + semaphoreSimulation.id, x, y + 20);
+        }
+
+        private void drawTruck(Graphics g, Truck truck) {
+            Position frontPos = truck.getCurrentPosition();
+            Position rearPos = truck.getRearPosition();
+
+            int frontX = OFFSET + frontPos.x * CELL_SIZE;
+            int rearX = OFFSET + rearPos.x * CELL_SIZE;
+            int y = OFFSET;
+
+            // Color según estado
+            Color truckColor = switch(truck.getTruckState()) {
+                case MOVING -> new Color(139, 69, 19); // Brown
+                case WAITING -> Color.ORANGE;
+                case WAITING_SEMAPHORE -> Color.RED;
+                case WAITING_DOUBLE_SEGMENT -> Color.MAGENTA;
+                case IN_INTERSECTION -> Color.CYAN;
+                case FINISHED -> Color.GREEN;
+            };
+
+            g.setColor(truckColor);
+
+            // Draw truck body spanning from rear to front
+            int truckStartX = Math.min(frontX, rearX);
+            int truckWidth = Math.abs(frontX - rearX) + CELL_SIZE - 10;
+            g.fillRect(truckStartX, y + 5, truckWidth, 20);
+
+            // Cabina del camión (always at the front)
+            g.setColor(new Color(70, 130, 180)); // Steel blue
+            int cabX = (frontPos.x > rearPos.x) ? frontX - 10 : frontX;
+            g.fillRect(cabX, y + 5, 15, 15);
+
+            // Ruedas (4 ruedas - at both segments)
+            g.setColor(Color.BLACK);
+            g.fillOval(truckStartX + 5, y + 23, 8, 8);
+            g.fillOval(truckStartX + truckWidth - 15, y + 23, 8, 8);
+            g.fillOval(truckStartX + truckWidth/2 - 4, y + 23, 8, 8);
+            g.fillOval(truckStartX + truckWidth/2 + 10, y + 23, 8, 8);
+
+            // Etiqueta
+            g.setColor(Color.WHITE);
+            g.drawString("T" + truck.id, truckStartX + truckWidth/2 - 5, y + 15);
+
+            // Estado
+            g.setColor(Color.BLACK);
+            g.drawString(truck.getTruckState().toString(), truckStartX, y + 45);
         }
 
         private void drawCar(Graphics g, Car car) {

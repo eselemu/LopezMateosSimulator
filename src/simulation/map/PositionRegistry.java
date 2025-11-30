@@ -32,6 +32,14 @@ public class PositionRegistry {
         return false;
     }
 
+    // NEW: Method to remove agent positions
+    public void removeAgent(String agentId) {
+        Position oldPos = agentPositions.remove(agentId);
+        if(oldPos != null) {
+            positionAgents.remove(oldPos);
+        }
+    }
+
     public Position getAgentPosition(String agentId) {
         return agentPositions.get(agentId);
     }

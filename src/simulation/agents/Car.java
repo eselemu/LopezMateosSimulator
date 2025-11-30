@@ -80,7 +80,7 @@ public class Car extends Agent {
 
                             // IMPORTANT: Sleep while HOLDING the lock
                             // This simulates the time spent in this position
-                            Thread.sleep(1000);
+                            Thread.sleep(50);
 
                         } else {
                             // Segment ocupado, esperar
