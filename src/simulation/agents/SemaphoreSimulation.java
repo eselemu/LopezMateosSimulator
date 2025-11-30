@@ -11,7 +11,7 @@ public class SemaphoreSimulation extends Agent {
 
     public enum LightState { GREEN, YELLOW, RED }
 
-    private LightState currentState;
+    private volatile LightState currentState;
     private Position position;
     private long lastChangeTime;
 

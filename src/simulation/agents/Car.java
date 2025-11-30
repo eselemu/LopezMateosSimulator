@@ -2,17 +2,17 @@ package simulation.agents;
 
 import simulation.map.MapManager;
 import simulation.map.Position;
-import simulation.map.StreetSegment;
+import simulation.map.TrafficNode;
 
-import java.util.concurrent.BlockingQueue;
+import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class Car extends Agent {
     private Position currentPosition;
-    private Position destination;
-    private BlockingQueue<Position> route;
+    private TrafficNode currentNode;
+    private TrafficNode destinationNode;
+    private Queue<TrafficNode> nodeRoute;
     private MapManager mapManager;
-    private StreetSegment currentSegment; // Track current segment
 
     public enum CarState {
         MOVING,
@@ -24,118 +24,124 @@ public class Car extends Agent {
 
     private CarState carState;
 
-    public Car(int id, Position start, Position destination){
+    public Car(int id, Position start, Position destination) {
         this.id = id;
         this.currentPosition = start;
-        this.destination = destination;
         this.type = AgentType.CAR;
         this.state = AgentState.ACTIVE;
         this.carState = CarState.MOVING;
         this.mapManager = MapManager.getInstance();
-        this.route = new LinkedBlockingQueue<>();
-        calculateSimpleRoute();
+        this.nodeRoute = new LinkedBlockingQueue<>();
+
+        // Convert positions to nodes and calculate route
+        this.currentNode = mapManager.getNodeAtPosition(start);
+        this.destinationNode = mapManager.getNodeAtPosition(destination);
+        calculateNodeRoute();
     }
 
-    private void calculateSimpleRoute() {
-        // Ruta simple: mover de start a destination en línea recta
-        for(int x = currentPosition.x + 1; x <= destination.x; x++) {
-            route.offer(new Position(x, currentPosition.y));
+    private void calculateNodeRoute() {
+        if (currentNode != null && destinationNode != null) {
+            nodeRoute = mapManager.calculateSimpleRoute(currentNode, destinationNode);
+            // Remove the current node from the route (we're already there)
+            if (!nodeRoute.isEmpty()) {
+                nodeRoute.poll();
+            }
+            System.out.println("Car " + id + " route calculated: " + nodeRoute.size() + " nodes");
+        } else {
+            System.out.println("Car " + id + " could not find start or end node!");
+            carState = CarState.FINISHED;
+            state = AgentState.FINISHED;
         }
     }
 
     @Override
-    public void run(){
-        System.out.println("Car " + id + " iniciado en posición: " + currentPosition);
+    public void run() {
+        System.out.println("Car " + id + " started at node: " +
+                (currentNode != null ? currentNode.nodeId : "null"));
 
-        while(running && !route.isEmpty()) {
+        while (running && !nodeRoute.isEmpty()) {
             try {
-                Position nextPosition = route.peek();
+                TrafficNode nextNode = nodeRoute.peek();
 
-                if(nextPosition != null) {
-                    StreetSegment segment = mapManager.getStreetSegment(currentPosition, nextPosition);
+                if (nextNode != null) {
+                    // Try to acquire the next node
+                    if (nextNode.tryAcquire(this)) {
+                        // Successfully acquired the node - move to it
+                        nodeRoute.poll(); // Remove from queue
 
-                    if(segment != null) {
-                        // Intentar adquirir el segmento de calle (zona crítica)
-                        if(segment.tryAcquire()) {
-                            // Mover al siguiente segmento
-                            route.poll(); // Remover de la cola
-
-                            // Release previous segment if exists
-                            if (currentSegment != null) {
-                                currentSegment.release();
-                                System.out.println("Car " + id + " released previous segment: " + currentSegment.getSegmentId());
-                            }
-
-                            // Update position and current segment
-                            mapManager.moveCar(this, currentPosition, nextPosition);
-                            currentPosition = nextPosition;
-                            currentSegment = segment; // Hold reference to current segment
-
-                            System.out.println("Car " + id + " movido a: " + currentPosition +
-                                    " - Segment: " + segment.getSegmentId() +
-                                    " - Estado: " + carState);
-
-                            // Verificar semáforo - UPDATED: Now uses proper waiting
-                            checkTrafficLight(nextPosition);
-
-                            // IMPORTANT: Sleep while HOLDING the lock
-                            // This simulates the time spent in this position
-                            Thread.sleep(50);
-
-                        } else {
-                            // Segment ocupado, esperar
-                            carState = CarState.WAITING;
-                            System.out.println("Car " + id + " esperando - segmento ocupado: " + segment.getSegmentId());
-                            Thread.sleep(500);
+                        // Release current node if exists
+                        if (currentNode != null) {
+                            currentNode.release();
+                            System.out.println("Car " + id + " released node: " + currentNode.nodeId);
                         }
+
+                        // Update position and current node
+                        Position oldPosition = currentPosition;
+                        currentPosition = nextNode.position;
+                        currentNode = nextNode;
+
+                        mapManager.moveCar(this, oldPosition, currentPosition);
+
+                        System.out.println("Car " + id + " moved to: " + currentNode.nodeId +
+                                " - Position: " + currentPosition + " - State: " + carState);
+
+                        // Check traffic light at new position
+                        checkTrafficLight(currentPosition);
+
+                        // Simulate time spent at this node
+                        Thread.sleep(1000);
+
+                    } else {
+                        // Node is occupied, wait
+                        carState = CarState.WAITING;
+                        System.out.println("Car " + id + " waiting for node: " + nextNode.nodeId);
+                        //Thread.sleep(50);
                     }
                 }
 
-                if(currentPosition.equals(destination)) {
-                    // Release final segment when destination reached
-                    if (currentSegment != null) {
-                        currentSegment.release();
-                        System.out.println("Car " + id + " released final segment: " + currentSegment.getSegmentId());
-                    }
+                // Check if reached destination
+                if (currentNode != null && currentNode.equals(destinationNode)) {
                     carState = CarState.FINISHED;
                     state = AgentState.FINISHED;
-                    System.out.println("Car " + id + " llegó a su destino");
+                    System.out.println("Car " + id + " reached destination node: " + currentNode.nodeId);
                     break;
                 }
 
             } catch (InterruptedException e) {
-                // Release segment if interrupted
-                if (currentSegment != null) {
-                    currentSegment.release();
+                // Release current node if interrupted
+                if (currentNode != null) {
+                    currentNode.release();
                 }
                 Thread.currentThread().interrupt();
                 break;
             }
         }
+
+        // Release final node when finished
+        if (currentNode != null) {
+            currentNode.release();
+        }
     }
 
     private void checkTrafficLight(Position position) {
         SemaphoreSimulation semaphore = mapManager.getSemaphoreAt(position);
-        if(semaphore != null) {
-            if(semaphore.getCurrentState() == SemaphoreSimulation.LightState.RED) {
+        if (semaphore != null) {
+            if (semaphore.getCurrentState() == SemaphoreSimulation.LightState.YELLOW || semaphore.getCurrentState() == SemaphoreSimulation.LightState.RED) {
                 carState = CarState.WAITING_SEMAPHORE;
-                System.out.println("Car " + id + " detectó semáforo rojo en posición " + position + ", esperando...");
+                System.out.println("Car " + id + " detected red light at position " + position + ", waiting...");
 
                 try {
-                    // Wait for green light using Condition.await()
                     semaphore.waitForGreenLight();
-
-                    // When we get here, the light is green
                     carState = CarState.MOVING;
-                    System.out.println("Car " + id + " puede avanzar - semáforo verde!");
+                    System.out.println("Car " + id + " can proceed - green light!");
 
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    System.out.println("Car " + id + " interrumpido mientras esperaba semáforo");
+                    System.out.println("Car " + id + " interrupted while waiting for semaphore");
                 }
             } else {
                 carState = CarState.MOVING;
-                System.out.println("Car " + id + " semáforo verde, avanzando...");
+                System.out.println("Car " + id + " green light, proceeding...");
             }
         } else {
             carState = CarState.MOVING;
@@ -143,15 +149,17 @@ public class Car extends Agent {
     }
 
     public void stopCar() {
-        // Release current segment when stopping
-        if (currentSegment != null) {
-            currentSegment.release();
+        if (currentNode != null) {
+            currentNode.release();
         }
         stopAgent();
     }
 
-    // Getters para UI
+    // Getters for UI
     public Position getCurrentPosition() { return currentPosition; }
     public CarState getCarState() { return carState; }
-    public Position getDestination() { return destination; }
+    public Position getDestination() {
+        return destinationNode != null ? destinationNode.position : new Position(0, 0);
+    }
+    public Queue<TrafficNode> getNodeRoute() { return nodeRoute; }
 }

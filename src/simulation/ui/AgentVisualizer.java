@@ -1,29 +1,26 @@
 package simulation.ui;
 
 import simulation.TrafficSimulationCore;
-import simulation.agents.Agent;
 import simulation.map.MapManager;
-import simulation.map.StreetSegment;
+import simulation.map.TrafficNode;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 
 public class AgentVisualizer extends JFrame implements Runnable {
     private final TrafficSimulationCore simulation;
     private final MapManager mapManager;
     private Map<String, Integer> agentCount;
-    private Map<StreetSegment, Integer> segmentCount;
+    private Map<TrafficNode, Integer> segmentCount;
     private final DefaultTableModel table;
 
     public AgentVisualizer() {
         this.simulation = TrafficSimulationCore.getInstance();
         this.mapManager = MapManager.getInstance();
         this.agentCount = simulation.getAgentCount();
-        this.segmentCount = mapManager.getStreetSegments();
+        this.segmentCount = mapManager.getTrafficNodes();
 
         setTitle("Visualizador de Agentes, Buffers y Zonas Críticas");
         setSize(600, 600);
@@ -47,7 +44,7 @@ public class AgentVisualizer extends JFrame implements Runnable {
     public void run() {
         while (!Thread.currentThread().isInterrupted()) {
             agentCount = simulation.getAgentCount();
-            segmentCount = mapManager.getStreetSegments();
+            segmentCount = mapManager.getTrafficNodes();
 
             SwingUtilities.invokeLater(() -> {
                 // Limpia la tabla completamente antes de reconstruirla
@@ -60,7 +57,7 @@ public class AgentVisualizer extends JFrame implements Runnable {
 
                 //Buffers y zonas critica
                 int bufferIndex = 0;
-                for (StreetSegment segment : segmentCount.keySet()) {
+                for (TrafficNode segment : segmentCount.keySet()) {
                     int occupancy = segmentCount.get(segment);
 
                     // Buffer

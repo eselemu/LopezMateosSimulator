@@ -45,7 +45,7 @@ public class TrafficSimulationUI extends JFrame {
         JLabel carLabel = new JLabel("Carros: ");
         JTextField carNumber = new JTextField("0", 3);
 
-        JLabel semaphoreLabel = new JLabel("Semáforos: ");
+        JLabel semaphoreLabel = new JLabel("Camiones: ");
         JTextField semaphoreNumber = new JTextField("0", 3);
 
         JLabel pedestrianLabel = new JLabel("Peatones: ");
@@ -109,7 +109,7 @@ public class TrafficSimulationUI extends JFrame {
             setInputs(Integer.parseInt(carInput), Integer.parseInt(semInput), Integer.parseInt(pedInput), Integer.parseInt(greenSemInput), Integer.parseInt(yellowSemInput), Integer.parseInt(redSemInput));
 
             // Initialize and start simulation
-            simulation.initializeSimulation(getInputs()[0], 2, getInputs()[1], getInputs()[2], getInputs()[3], getInputs()[4], getInputs()[5]);
+            simulation.initializeSimulation(getInputs()[0], getInputs()[1], 0, getInputs()[2], getInputs()[3], getInputs()[4], getInputs()[5]);
             simulation.startSimulation();
 
             startButton.setEnabled(false);
@@ -238,8 +238,7 @@ public class TrafficSimulationUI extends JFrame {
                 case MOVING -> new Color(139, 69, 19); // Brown
                 case WAITING -> Color.ORANGE;
                 case WAITING_SEMAPHORE -> Color.RED;
-                case WAITING_DOUBLE_SEGMENT -> Color.MAGENTA;
-                case IN_INTERSECTION -> Color.CYAN;
+                case WAITING_DOUBLE_NODE -> Color.MAGENTA;
                 case FINISHED -> Color.GREEN;
             };
 

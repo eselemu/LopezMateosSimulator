@@ -2,26 +2,25 @@ package simulation.agents;
 
 import simulation.map.MapManager;
 import simulation.map.Position;
-import simulation.map.StreetSegment;
+import simulation.map.TrafficNode;
 
-import java.util.concurrent.BlockingQueue;
+import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 public class Truck extends Agent {
-    private Position currentPosition;  // Front position of the truck
-    private Position rearPosition;     // Rear position of the truck
-    private Position destination;
-    private BlockingQueue<Position> route;
+    private Position currentPosition;
+    private Position rearPosition;
+    private TrafficNode currentFrontNode;
+    private TrafficNode currentRearNode;
+    private TrafficNode destinationNode;
+    private Queue<TrafficNode> nodeRoute;
     private MapManager mapManager;
-    private StreetSegment currentFrontSegment; // Segment for front position
-    private StreetSegment currentRearSegment;  // Segment for rear position
 
     public enum TruckState {
         MOVING,
         WAITING,
         WAITING_SEMAPHORE,
-        WAITING_DOUBLE_SEGMENT,
-        IN_INTERSECTION,
+        WAITING_DOUBLE_NODE,
         FINISHED
     }
 
@@ -29,228 +28,172 @@ public class Truck extends Agent {
 
     public Truck(int id, Position start, Position destination) {
         this.id = id;
-        // Initialize rear position as one position behind the start
-        this.rearPosition = new Position(start.x - 1, start.y);
         this.currentPosition = start;
-        this.destination = destination;
+        this.rearPosition = new Position(start.x - 1, start.y);
         this.type = AgentType.TRUCK;
         this.state = AgentState.ACTIVE;
         this.truckState = TruckState.MOVING;
         this.mapManager = MapManager.getInstance();
-        this.route = new LinkedBlockingQueue<>();
+        this.nodeRoute = new LinkedBlockingQueue<>();
 
-        calculateSimpleRoute();
+        // Convert positions to nodes
+        this.currentFrontNode = mapManager.getNodeAtPosition(start);
+        this.currentRearNode = mapManager.getNodeAtPosition(rearPosition);
+        this.destinationNode = mapManager.getNodeAtPosition(destination);
+
+        calculateNodeRoute();
+        acquireInitialNodes();
     }
 
-    private void calculateSimpleRoute() {
-        for(int x = currentPosition.x + 1; x <= destination.x; x++) {
-            route.offer(new Position(x, currentPosition.y));
+    private void calculateNodeRoute() {
+        if (currentFrontNode != null && destinationNode != null) {
+            nodeRoute = mapManager.calculateSimpleRoute(currentFrontNode, destinationNode);
+            // Remove the current front node from the route (we're already there)
+            if (!nodeRoute.isEmpty()) {
+                nodeRoute.poll();
+            }
+            System.out.println("Truck " + id + " route calculated: " + nodeRoute.size() + " nodes");
         }
     }
 
+    private void acquireInitialNodes() {
+        if (currentFrontNode != null && currentFrontNode.tryAcquire(this)) {
+            System.out.println("Truck " + id + " acquired front node: " + currentFrontNode.nodeId);
+        }
+        if (currentRearNode != null && currentRearNode.tryAcquire(this)) {
+            System.out.println("Truck " + id + " acquired rear node: " + currentRearNode.nodeId);
+        }
+    }
 
     @Override
     public void run() {
-        acquireInitialSegments();
-        System.out.println("Truck " + id + " iniciado - Frente: " + currentPosition + " - Trasero: " + rearPosition);
+        System.out.println("Truck " + id + " started - Front: " + currentPosition + " Rear: " + rearPosition);
 
-        boolean firstMove = true;
-
-        while (running && !route.isEmpty()) {
+        while (running && !nodeRoute.isEmpty()) {
             try {
-                Position nextPosition = route.peek();
+                TrafficNode nextNode = nodeRoute.peek();
 
-                if(nextPosition != null) {
-                    StreetSegment frontSegment = mapManager.getStreetSegment(currentPosition, nextPosition);
+                if (nextNode != null) {
+                    // Try to acquire both the next node and release the rear node
+                    if (tryAcquireNextNode(nextNode)) {
+                        nodeRoute.poll(); // Remove from queue
 
-                    if(frontSegment != null) {
-                        boolean canMove = false;
+                        // Update positions
+                        Position oldRear = rearPosition;
+                        rearPosition = currentPosition;
+                        currentPosition = nextNode.position;
 
-                        if (firstMove) {
-                            canMove = (currentFrontSegment != null);
-                            firstMove = false;
-                        } else {
-                            // Subsequent moves: try to acquire new front segment
-                            canMove = tryAcquireDoubleSegment(frontSegment, nextPosition);
+                        // Update node occupancy
+                        if (currentRearNode != null) {
+                            currentRearNode.release();
+                            System.out.println("Truck " + id + " released rear node: " + currentRearNode.nodeId);
                         }
 
-                        if(canMove) {
-                            route.poll();
+                        currentRearNode = currentFrontNode;
+                        currentFrontNode = nextNode;
 
-                            // Release the OLD rear segment
-                            if (currentRearSegment != null) {
-                                currentRearSegment.release();
-                                System.out.println("Truck " + id + " released OLD rear segment: " + currentRearSegment.getSegmentId());
-                            }
+                        mapManager.moveTruck(this, oldRear, currentPosition, rearPosition);
 
-                            // Update positions
-                            rearPosition = currentPosition;
-                            currentPosition = nextPosition;
+                        System.out.println("Truck " + id + " moved - Front: " + currentFrontNode.nodeId +
+                                " Rear: " + currentRearNode.nodeId + " - State: " + truckState);
 
-                            currentRearSegment = currentFrontSegment;
-                            currentFrontSegment = frontSegment;  // Always update (first move: same reference, other moves: new segment)
+                        checkTrafficLightForTruck();
+                        Thread.sleep(1000); // Movement time
 
-                            mapManager.moveTruck(this, rearPosition, currentPosition, rearPosition);
-
-                            System.out.println("Truck " + id + " movido - Frente: " + currentPosition +
-                                    " - Trasero: " + rearPosition +
-                                    " - Front Segment: " + (currentFrontSegment != null ? currentFrontSegment.getSegmentId() : "null") +
-                                    " - Rear Segment: " + (currentRearSegment != null ? currentRearSegment.getSegmentId() : "null") +
-                                    " - Estado: " + truckState);
-
-                            checkTrafficLightForTruck();
-                            Thread.sleep(1000);
-                        } else {
-                            truckState = TruckState.WAITING_DOUBLE_SEGMENT;
-                            System.out.println("Truck " + id + " esperando - no puede adquirir segmento frontal");
-                            Thread.sleep(500);
-                        }
+                    } else {
+                        truckState = TruckState.WAITING_DOUBLE_NODE;
+                        System.out.println("Truck " + id + " waiting for node access");
                     }
                 }
 
-                if(currentPosition.equals(destination)) {
-                    releasePreviousSegments();
+                // Check if reached destination
+                if (currentFrontNode != null && currentFrontNode.equals(destinationNode)) {
+                    releaseAllNodes();
                     truckState = TruckState.FINISHED;
                     state = AgentState.FINISHED;
-                    System.out.println("Truck " + id + " llegó a su destino");
+                    System.out.println("Truck " + id + " reached destination");
                     break;
                 }
 
             } catch (InterruptedException e) {
-                releasePreviousSegments();
+                releaseAllNodes();
                 Thread.currentThread().interrupt();
                 break;
             }
         }
     }
 
-    private boolean tryAcquireDoubleSegment(StreetSegment frontSegment, Position nextPosition) {
-        // First check semaphores at both positions the truck will occupy after movement
-        SemaphoreSimulation newFrontSemaphore = mapManager.getSemaphoreAt(nextPosition);
-        SemaphoreSimulation newRearSemaphore = mapManager.getSemaphoreAt(currentPosition);
+    private boolean tryAcquireNextNode(TrafficNode nextNode) {
+        // Check semaphores first
+        /*SemaphoreSimulation frontSemaphore = mapManager.getSemaphoreAt(nextNode.position);
+        SemaphoreSimulation rearSemaphore = mapManager.getSemaphoreAt(currentPosition);
 
-        // If there's a red light at either position, we need to wait
-        if ((newFrontSemaphore != null && newFrontSemaphore.getCurrentState() == SemaphoreSimulation.LightState.RED) ||
-                (newRearSemaphore != null && newRearSemaphore.getCurrentState() == SemaphoreSimulation.LightState.RED)) {
-
-            truckState = TruckState.WAITING_SEMAPHORE;
-            System.out.println("Truck " + id + " detectó semáforo rojo, esperando...");
-            return false;
-        }
-
-        // Try to acquire the NEW front segment (currentPosition → nextPosition)
-        if (frontSegment.tryAcquire()) {
-            System.out.println("Truck " + id + " adquirió segmento frontal: " + frontSegment.getSegmentId());
-            return true;
-        } else {
-            System.out.println("Truck " + id + " no pudo adquirir segmento frontal: " + frontSegment.getSegmentId());
-            return false;
-        }
-    }
-
-    private void acquireInitialSegments() {
-        // Acquire BOTH initial segments
-        StreetSegment rearSeg = mapManager.getStreetSegment(rearPosition, currentPosition);
-
-        if (rearSeg != null && rearSeg.tryAcquire()) {
-            currentRearSegment = rearSeg;
-            System.out.println("Truck " + id + " adquirió segmento trasero inicial: " + rearSeg.getSegmentId());
-        }
-
-        // ALSO acquire the front segment (from current to first destination)
-        Position firstDest = route.peek();
-        if (firstDest != null) {
-            StreetSegment frontSeg = mapManager.getStreetSegment(currentPosition, firstDest);
-            if (frontSeg != null && frontSeg.tryAcquire()) {
-                currentFrontSegment = frontSeg;
-                System.out.println("Truck " + id + " adquirió segmento frontal inicial: " + frontSeg.getSegmentId());
-            }
-        }
-    }
-
-    /**
-     * Release both segments the truck currently occupies
-     */
-    /**
-     * Release both segments the truck currently occupies
-     */
-    private void releasePreviousSegments() {
-        // Release in reverse order: front first, then rear
-        if (currentFrontSegment != null) {
-            currentFrontSegment.release();
-            System.out.println("Truck " + id + " released front segment: " + currentFrontSegment.getSegmentId());
-            currentFrontSegment = null;
-        }
-        if (currentRearSegment != null) {
-            currentRearSegment.release();
-            System.out.println("Truck " + id + " released rear segment: " + currentRearSegment.getSegmentId());
-            currentRearSegment = null;
-        }
-    }
-
-    /**
-     * Check traffic light for truck considering it occupies 2 positions
-     */
-    private void checkTrafficLightForTruck() {
-        // Check both positions the truck occupies
-        SemaphoreSimulation frontSemaphore = mapManager.getSemaphoreAt(currentPosition);
-        SemaphoreSimulation rearSemaphore = mapManager.getSemaphoreAt(rearPosition);
-
-        // If either semaphore is red, wait for both to be green
         if ((frontSemaphore != null && frontSemaphore.getCurrentState() == SemaphoreSimulation.LightState.RED) ||
                 (rearSemaphore != null && rearSemaphore.getCurrentState() == SemaphoreSimulation.LightState.RED)) {
 
             truckState = TruckState.WAITING_SEMAPHORE;
-            System.out.println("Truck " + id + " detectó semáforo rojo en posición " +
-                    currentPosition + " o " + rearPosition + ", esperando...");
+            System.out.println("Truck " + id + " waiting for semaphore");
+            return false;
+        }*/
+
+        // Try to acquire the next node
+        return nextNode.tryAcquire(this);
+    }
+
+    private void checkTrafficLightForTruck() {
+        SemaphoreSimulation frontSemaphore = mapManager.getSemaphoreAt(currentPosition);
+        SemaphoreSimulation rearSemaphore = mapManager.getSemaphoreAt(rearPosition);
+
+        if ((frontSemaphore != null && (frontSemaphore.getCurrentState() == SemaphoreSimulation.LightState.YELLOW || frontSemaphore.getCurrentState() == SemaphoreSimulation.LightState.RED)) /*||
+                (rearSemaphore != null && (rearSemaphore.getCurrentState() == SemaphoreSimulation.LightState.YELLOW || rearSemaphore.getCurrentState() == SemaphoreSimulation.LightState.RED))*/) {
+
+            truckState = TruckState.WAITING_SEMAPHORE;
+            System.out.println("Truck " + id + " detected red light, waiting...");
 
             try {
-                // Wait for both semaphores to be green
                 waitForBothSemaphoresGreen(frontSemaphore, rearSemaphore);
-
                 truckState = TruckState.MOVING;
-                System.out.println("Truck " + id + " puede avanzar - ambos semáforos verdes!");
+                System.out.println("Truck " + id + " can proceed - both semaphores green!");
 
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                System.out.println("Truck " + id + " interrumpido mientras esperaba semáforo");
             }
         } else {
             truckState = TruckState.MOVING;
-            System.out.println("Truck " + id + " ambos semáforos verdes, avanzando...");
         }
     }
 
-    /**
-     * Wait until both semaphores are green
-     */
     private void waitForBothSemaphoresGreen(SemaphoreSimulation frontSem, SemaphoreSimulation rearSem)
             throws InterruptedException {
         while (running &&
                 ((frontSem != null && frontSem.getCurrentState() != SemaphoreSimulation.LightState.GREEN) ||
                         (rearSem != null && rearSem.getCurrentState() != SemaphoreSimulation.LightState.GREEN))) {
-
-            // Wait a bit and check again
             Thread.sleep(100);
         }
     }
 
+    private void releaseAllNodes() {
+        if (currentFrontNode != null) {
+            currentFrontNode.release();
+            currentFrontNode = null;
+        }
+        if (currentRearNode != null) {
+            currentRearNode.release();
+            currentRearNode = null;
+        }
+    }
+
     public void stopTruck() {
-        releasePreviousSegments();
+        releaseAllNodes();
         stopAgent();
     }
 
-    // Getters para UI
+    // Getters for UI
     public Position getCurrentPosition() { return currentPosition; }
-    public Position getRearPosition() { return rearPosition; } // NEW: Get rear position
+    public Position getRearPosition() { return rearPosition; }
     public TruckState getTruckState() { return truckState; }
-    public Position getDestination() { return destination; }
-
-    // Method to get both positions occupied by the truck
-    public Position[] getOccupiedPositions() {
-        return new Position[] {
-                currentPosition,
-                rearPosition
-        };
+    public Position getDestination() {
+        return destinationNode != null ? destinationNode.position : new Position(0, 0);
     }
+    public Queue<TrafficNode> getNodeRoute() { return nodeRoute; }
 }

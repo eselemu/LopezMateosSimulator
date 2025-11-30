@@ -3,6 +3,7 @@ package simulation;
 import simulation.agents.*;
 import simulation.map.MapManager;
 import simulation.map.Position;
+import simulation.map.TrafficNode;
 
 import java.util.*;
 
@@ -30,35 +31,44 @@ public class TrafficSimulationCore {
         return instance;
     }
 
+    // In the initializeSimulation method, update the vehicle creation:
+
     public void initializeSimulation(int carsNumber, int trucksNumber, int semaphoresNumber,
                                      int pedestriansNumber, int greenLightTimer,
-                                     int yellowLightTimer, int redLightTimer){
+                                     int yellowLightTimer, int redLightTimer) {
+
         mapManager.initializeSimpleMap();
 
         int[] lightsTimers = {greenLightTimer, yellowLightTimer, redLightTimer};
         SemaphoreSimulation.setLightsTimer(lightsTimers);
 
         Random random = new Random();
-        int maxInt = 9;
+        int maxX = 8; // Maximum x coordinate for destinations
 
+        // Create cars with node-based routing
         for (int i = 0; i < carsNumber; i++) {
-            Car car = new Car(i+1, new Position(0, 0), new Position(random.nextInt(6,maxInt), 0));
-            cars.add(car);
+            TrafficNode startNode = mapManager.getStartNode();
+            TrafficNode endNode = mapManager.getEndNode(random.nextInt(6, maxX));
+
+            if (startNode != null && endNode != null) {
+                Car car = new Car(i+1, startNode.position, endNode.position);
+                cars.add(car);
+            }
         }
 
+        // Create trucks with node-based routing
         for (int i = 0; i < trucksNumber; i++) {
-            // Trucks start at position 1 with rear at position 0
-            Truck truck = new Truck(i+1, new Position(0, 0), new Position(random.nextInt(7,maxInt), 0));
-            trucks.add(truck);
+            TrafficNode startNode = mapManager.getStartNode();
+            TrafficNode endNode = mapManager.getEndNode(random.nextInt(7, maxX));
+
+            if (startNode != null && endNode != null) {
+                Truck truck = new Truck(i+1, startNode.position, endNode.position);
+                trucks.add(truck);
+            }
         }
 
-        for (int i = 0; i < semaphoresNumber; i++) {
-            SemaphoreSimulation semaphore = new SemaphoreSimulation(i+1, new Position(random.nextInt(2,maxInt), 0));
-            semaphores.add(semaphore);
-            mapManager.registerSemaphore(semaphore);
-        }
-
-}
+        semaphores.addAll(mapManager.getAllSemaphores());
+    }
 
     public void startSimulation(){
         isRunning = true;
