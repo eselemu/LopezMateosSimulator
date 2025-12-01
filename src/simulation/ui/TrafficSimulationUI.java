@@ -34,15 +34,15 @@ public class TrafficSimulationUI extends JFrame {
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLayout(new BorderLayout());
 
-        // Simulation Panel
+        // Simulation Panel - now takes the entire center space
         simulationPanel = new SimulationPanel();
         add(simulationPanel, BorderLayout.CENTER);
 
-        // Logs
-        logArea = new JTextArea(10, 40);
-        logArea.setEditable(false);
-        JScrollPane scrollPane = new JScrollPane(logArea);
-        add(scrollPane, BorderLayout.SOUTH);
+        // REMOVED: Log area at the bottom
+        // logArea = new JTextArea(10, 40);
+        // logArea.setEditable(false);
+        // JScrollPane scrollPane = new JScrollPane(logArea);
+        // add(scrollPane, BorderLayout.SOUTH);
 
         // Inputs
         JLabel carLabel = new JLabel("Carros: ");
@@ -68,7 +68,7 @@ public class TrafficSimulationUI extends JFrame {
 
         // --- Panel superior ---
         JPanel controlPanel = new JPanel();
-        controlPanel.setPreferredSize(new Dimension(this.getWidth(), 100));
+        controlPanel.setPreferredSize(new Dimension(this.getWidth(), 80)); // Slightly smaller
         controlPanel.add(carLabel);
         controlPanel.add(carNumber);
         controlPanel.add(semaphoreLabel);
@@ -126,7 +126,7 @@ public class TrafficSimulationUI extends JFrame {
         });
 
         pack();
-        setSize(850, 600);
+        setSize(900, 700); // Increased height to accommodate larger simulation area
         setLocationRelativeTo(null);
 
         Timer timer = new Timer(100, e -> updateUI());
@@ -150,13 +150,8 @@ public class TrafficSimulationUI extends JFrame {
 
     private void updateUI() {
         simulationPanel.repaint();
-        updateLogs();
+        //updateLogs();
     }
-
-    private void updateLogs() {
-        // Aquí podrías agregar logs en tiempo real
-    }
-
     private class SimulationPanel extends JPanel {
         private static final int CELL_SIZE = 60; // Larger cells to accommodate sidewalks
         private static final int OFFSET = 50;
