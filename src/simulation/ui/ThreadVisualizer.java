@@ -23,7 +23,7 @@ public class ThreadVisualizer extends JFrame implements Runnable {
     private volatile Map<Thread.State, Integer> statesMap;
     private volatile Map<Car.CarState, Integer> carStateMap;
     private volatile Map<SemaphoreSimulation.LightState, Integer> semaphoreStateMap;
-    private volatile Map<Thread.State, Integer> pedestrianStateMap;
+    private volatile Map<Pedestrian.PedestrianState, Integer> pedestrianStateMap;
     //    private volatile Map<Truck.TruckState, Integer> truckStateMap;
     private final JLabel totalThreadsLabel;
 

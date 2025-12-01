@@ -31,8 +31,7 @@ public class TrafficSimulationCore {
         return instance;
     }
 
-    // In the initializeSimulation method, update the vehicle creation:
-
+    // In the initializeSimulation method, add pedestrian creation:
     public void initializeSimulation(int carsNumber, int trucksNumber, int semaphoresNumber,
                                      int pedestriansNumber, int greenLightTimer,
                                      int yellowLightTimer, int redLightTimer) {
@@ -68,18 +67,26 @@ public class TrafficSimulationCore {
             }
         }
 
+        // Create pedestrians
+        for (int i = 0; i < pedestriansNumber; i++) {
+            Pedestrian pedestrian = new Pedestrian(i+1);
+            pedestrians.add(pedestrian);
+            System.out.println("Pedestrian " + (i+1) + " created");
+        }
+
         semaphores.addAll(mapManager.getAllSemaphores());
     }
 
+    // In the startSimulation method, add pedestrian start:
     public void startSimulation(){
         isRunning = true;
 
-        // Iniciar semáforos
+        // Start semaphores
         for(SemaphoreSimulation semaphore : semaphores){
             semaphore.start();
         }
 
-        // Iniciar carros
+        // Start cars
         for(Car car : cars){
             car.start();
         }
@@ -88,13 +95,15 @@ public class TrafficSimulationCore {
             truck.start();
         }
 
-//        for(Pedestrian pedestrian : pedestrians){
-//            pedestrian.start();
-//        }
+        // Start pedestrians
+        for(Pedestrian pedestrian : pedestrians){
+            pedestrian.start();
+        }
 
         System.out.println("Simulación iniciada");
     }
 
+    // In the stopSimulation method, add pedestrian stop:
     public void stopSimulation(){
         isRunning = false;
 
@@ -110,6 +119,10 @@ public class TrafficSimulationCore {
             semaphore.stopSemaphore();
         }
 
+        for(Pedestrian pedestrian : pedestrians){
+            pedestrian.stopPedestrian();
+        }
+
         System.out.println("Simulación detenida");
     }
 
@@ -117,6 +130,7 @@ public class TrafficSimulationCore {
     public List<Car> getCars() { return cars; }
     public List<Truck> getTrucks() { return trucks; }
     public List<SemaphoreSimulation> getSemaphores() { return semaphores; }
+    public List<Pedestrian> getPedestrians() { return pedestrians; }
     public boolean isRunning() { return isRunning; }
 
     public void connectToTrafficManager(){}
@@ -166,10 +180,10 @@ public class TrafficSimulationCore {
         return counts;
     }
 
-    public Map<Thread.State, Integer> getPedestrianStateCounts(){
-        Map<Thread.State, Integer> counts = new HashMap<>();
+    public Map<Pedestrian.PedestrianState, Integer> getPedestrianStateCounts() {
+        Map<Pedestrian.PedestrianState, Integer> counts = new HashMap<>();
         for (Pedestrian pedestrian : pedestrians) {
-            Thread.State state = pedestrian.getState();
+            Pedestrian.PedestrianState state = pedestrian.getPedestrianState();
             counts.put(state, counts.getOrDefault(state, 0) + 1);
         }
         return counts;
@@ -190,7 +204,7 @@ public class TrafficSimulationCore {
         counts.put("Car", cars.size());
         counts.put("Truck", trucks.size());
         counts.put("Semaphore", semaphores.size());
-        // counts.put("Pedestrian", pedestrians.size());
+        counts.put("Pedestrian", pedestrians.size());
 
         return counts;
     }

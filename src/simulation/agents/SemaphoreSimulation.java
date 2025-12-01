@@ -1,6 +1,7 @@
 package simulation.agents;
 
 import simulation.map.Position;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -17,6 +18,11 @@ public class SemaphoreSimulation extends Agent {
 
     private final ReentrantLock stateLock;
     private final Condition greenLightCondition;
+    private final Condition redLightCondition;
+
+    // Pedestrian control - only N pedestrians can cross simultaneously during red light
+    private final Semaphore pedestrianCrossingSemaphore;
+    private static final int MAX_CROSSING_PEDESTRIANS = 3;
 
     public SemaphoreSimulation(int id, Position position) {
         this.id = id;
@@ -28,6 +34,8 @@ public class SemaphoreSimulation extends Agent {
 
         this.stateLock = new ReentrantLock();
         this.greenLightCondition = stateLock.newCondition();
+        this.redLightCondition = stateLock.newCondition();
+        this.pedestrianCrossingSemaphore = new Semaphore(MAX_CROSSING_PEDESTRIANS, true);
     }
 
     @Override
@@ -56,11 +64,22 @@ public class SemaphoreSimulation extends Agent {
         stateLock.lock();
         try {
             switch (currentState) {
-                case GREEN -> currentState = LightState.YELLOW;
-                case YELLOW -> currentState = LightState.RED;
+                case GREEN -> {
+                    currentState = LightState.YELLOW;
+                    // When changing from green to yellow, pedestrians should stop crossing
+                    pedestrianCrossingSemaphore.drainPermits(); // Stop new pedestrians from crossing
+                }
+                case YELLOW -> {
+                    currentState = LightState.RED;
+                    // When changing to red, allow pedestrians to cross
+                    pedestrianCrossingSemaphore.release(MAX_CROSSING_PEDESTRIANS); // Reset permits
+                    redLightCondition.signalAll(); // Notify waiting pedestrians
+                }
                 case RED -> {
                     currentState = LightState.GREEN;
-                    greenLightCondition.signalAll();
+                    // When changing to green, stop pedestrians from crossing
+                    pedestrianCrossingSemaphore.drainPermits(); // Stop pedestrians
+                    greenLightCondition.signalAll(); // Notify waiting vehicles
                     System.out.println("Semáforo " + id + " señaló a todos los carros en espera");
                 }
             }
@@ -84,6 +103,7 @@ public class SemaphoreSimulation extends Agent {
         stateLock.lock();
         try {
             greenLightCondition.signalAll();
+            redLightCondition.signalAll();
         } finally {
             stateLock.unlock();
         }
@@ -109,7 +129,7 @@ public class SemaphoreSimulation extends Agent {
         redLightTimer = timers[2];
     }
 
-    // New method for cars to wait for green light
+    // Method for cars to wait for green light
     public void waitForGreenLight() throws InterruptedException {
         stateLock.lock();
         try {
@@ -121,5 +141,39 @@ public class SemaphoreSimulation extends Agent {
         } finally {
             stateLock.unlock();
         }
+    }
+
+    // Method for pedestrians to wait for red light and cross
+    public boolean waitForRedLightAndCross() throws InterruptedException {
+        stateLock.lock();
+        try {
+            // Wait for red light
+            while (currentState != LightState.RED && running) {
+                System.out.println("Peatón esperando semáforo rojo en " + id + " (estado: " + currentState + ")");
+                redLightCondition.await();
+            }
+
+            // Try to acquire crossing permit (only N pedestrians can cross simultaneously)
+            if (pedestrianCrossingSemaphore.tryAcquire()) {
+                System.out.println("Peatón " + Thread.currentThread().getName() + " comenzó a cruzar en semáforo " + id);
+                return true;
+            } else {
+                System.out.println("Peatón " + Thread.currentThread().getName() + " no pudo cruzar - máximo alcanzado en semáforo " + id);
+                return false;
+            }
+        } finally {
+            stateLock.unlock();
+        }
+    }
+
+    // Method for pedestrians to release crossing permit after crossing
+    public void finishCrossing() {
+        pedestrianCrossingSemaphore.release();
+        System.out.println("Peatón " + Thread.currentThread().getName() + " terminó de cruzar en semáforo " + id);
+    }
+
+    // Get the crossing time (red light duration)
+    public long getCrossingTime() {
+        return redLightTimer * 1000L; // Return crossing time in milliseconds
     }
 }

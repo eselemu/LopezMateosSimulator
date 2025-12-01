@@ -2,6 +2,7 @@ package simulation.ui;
 
 import simulation.TrafficSimulationCore;
 import simulation.agents.Car;
+import simulation.agents.Pedestrian;
 import simulation.agents.SemaphoreSimulation;
 import simulation.agents.Truck;
 import simulation.map.Position;
@@ -12,6 +13,7 @@ import simulation.map.TrafficNode;
 import javax.swing.*;
 import java.awt.*;
 import java.util.List;
+import java.util.Random;
 
 public class TrafficSimulationUI extends JFrame {
     private TrafficSimulationCore simulation;
@@ -355,10 +357,12 @@ public class TrafficSimulationUI extends JFrame {
             g2d.drawLine(arrowX, arrowY, x4, y4);
         }
 
+        // In the SimulationPanel class, update the drawAgents method:
         private void drawAgents(Graphics g) {
             List<Car> cars = simulation.getCars();
             List<Truck> trucks = simulation.getTrucks();
             List<SemaphoreSimulation> semaphores = simulation.getSemaphores();
+            List<Pedestrian> pedestrians = simulation.getPedestrians(); // Add this line
 
             TrafficMap trafficMap = simulation.getMapManager().getTrafficMap();
             int scale = trafficMap.getScale();
@@ -377,7 +381,15 @@ public class TrafficSimulationUI extends JFrame {
             for(Car car : cars) {
                 drawCar(g, car, trafficMap, scale);
             }
+
+            // Draw pedestrians on sidewalks (use detailed version)
+            for(Pedestrian pedestrian : pedestrians) {
+                if (pedestrian.getCurrentSemaphore() != null) {
+                    drawPedestrian(g, pedestrian, trafficMap, scale);
+                }
+            }
         }
+
 
         private void drawSemaphore(Graphics g, SemaphoreSimulation semaphore, TrafficMap trafficMap, int scale) {
             Position pos = semaphore.getPosition();
@@ -491,6 +503,119 @@ public class TrafficSimulationUI extends JFrame {
             // Draw car label
             g.setColor(Color.WHITE);
             g.drawString("C" + car.id, screenX - 4, screenY - 8);
+        }
+
+        // Add the drawPedestrian method:
+        // In the SimulationPanel class, update the drawPedestrian method:
+        // In the SimulationPanel class, replace the drawPedestrian methods with this:
+
+        private void drawPedestrian(Graphics g, Pedestrian pedestrian, TrafficMap trafficMap, int scale) {
+            Position semaphorePos = pedestrian.getCurrentSemaphore().getPosition();
+            int gridX = semaphorePos.x / scale;
+            int gridY = semaphorePos.y / scale;
+
+            int baseScreenX = OFFSET + gridX * CELL_SIZE;
+            int baseScreenY = OFFSET + gridY * CELL_SIZE;
+
+            // Small random offset for natural grouping (1-3 pixels)
+            Random random = new Random();
+            int offsetX = random.nextInt(3) - 6; // -1 to +1
+            int offsetY = random.nextInt(3) - 6;
+
+            int screenX, screenY;
+
+            // Calculate position based on pedestrian state
+            switch (pedestrian.getPedestrianState()) {
+                case WAITING_SEMAPHORE:
+                    // Position on sidewalk near semaphore (slightly to the right of semaphore)
+                    screenX = baseScreenX + CELL_SIZE - SIDEWALK_WIDTH + 5 + offsetX;
+                    screenY = baseScreenY + 10 + offsetY;
+                    break;
+
+                case CROSSING:
+                    // Position moving across the street based on crossing progress
+                    int crossingOffset = (pedestrian.getCrossingProgress() * ROAD_WIDTH) / 100;
+                    screenX = baseScreenX + SIDEWALK_WIDTH + (ROAD_WIDTH - crossingOffset) + offsetX;
+                    screenY = baseScreenY + CELL_SIZE / 2 + offsetY;
+                    //System.out.println(crossingOffset + " -> " + screenX );
+                    break;
+
+                case FINISHED:
+                    // Position on opposite sidewalk
+                    screenX = baseScreenX + 5 + offsetX;
+                    screenY = baseScreenY + CELL_SIZE - SIDEWALK_WIDTH - 5 + offsetY;
+                    break;
+
+                default:
+                    screenX = baseScreenX + offsetX;
+                    screenY = baseScreenY + offsetY;
+            }
+
+            // Color según estado
+            Color pedestrianColor = switch(pedestrian.getPedestrianState()) {
+                case WAITING_SEMAPHORE -> Color.MAGENTA;
+                case CROSSING -> Color.ORANGE;
+                case FINISHED -> Color.GREEN;
+            };
+
+            g.setColor(pedestrianColor);
+
+            // Draw pedestrian as a small circle
+            int pedestrianSize = 4;
+            g.fillOval(screenX - pedestrianSize/2, screenY - pedestrianSize/2, pedestrianSize, pedestrianSize);
+
+            // Draw pedestrian label
+            g.setColor(Color.WHITE);
+            g.setFont(new Font("Arial", Font.BOLD, 8));
+            g.drawString("P" + pedestrian.id, screenX - 4, screenY - 6);
+        }
+
+        // Alternative: Draw pedestrians with more detailed appearance
+        private void drawPedestrianDetailed(Graphics g, Pedestrian pedestrian, TrafficMap trafficMap, int scale) {
+            Position pos = pedestrian.getCurrentPosition();
+            int gridX = pos.x / scale;
+            int gridY = pos.y / scale;
+
+            // Add random offset for natural-looking grouping
+            Random random = new Random(pedestrian.id);
+            int offsetX = random.nextInt(10) - 5; // -5 to +5
+            int offsetY = random.nextInt(10) - 5;
+
+            int screenX = OFFSET + gridX * CELL_SIZE + CELL_SIZE / 2 + offsetX;
+            int screenY = OFFSET + gridY * CELL_SIZE + CELL_SIZE / 2 + offsetY;
+
+            // Color según estado
+            Color bodyColor = switch(pedestrian.getPedestrianState()) {
+                case WAITING_SEMAPHORE -> new Color(255, 0, 255); // Bright magenta
+                case CROSSING -> new Color(255, 165, 0); // Orange
+                case FINISHED -> new Color(0, 128, 0); // Dark green
+            };
+
+            Graphics2D g2d = (Graphics2D) g;
+
+            // Draw pedestrian as a simple stick figure
+            g2d.setColor(bodyColor);
+            g2d.setStroke(new BasicStroke(2));
+
+            // Body (vertical line)
+            g2d.drawLine(screenX, screenY - 6, screenX, screenY + 2);
+
+            // Head (circle)
+            g2d.fillOval(screenX - 2, screenY - 10, 4, 4);
+
+            // Arms (horizontal line)
+            g2d.drawLine(screenX - 4, screenY - 4, screenX + 4, screenY - 4);
+
+            // Legs (only show for crossing state to indicate movement)
+            if (pedestrian.getPedestrianState() == Pedestrian.PedestrianState.CROSSING) {
+                g2d.drawLine(screenX, screenY + 2, screenX - 3, screenY + 6);
+                g2d.drawLine(screenX, screenY + 2, screenX + 3, screenY + 6);
+            }
+
+            // Draw pedestrian label
+            g2d.setColor(Color.BLACK);
+            g2d.setFont(new Font("Arial", Font.BOLD, 9));
+            g2d.drawString("P" + pedestrian.id, screenX - 5, screenY - 12);
         }
 
         @Override
