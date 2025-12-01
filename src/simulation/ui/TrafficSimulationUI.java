@@ -158,8 +158,10 @@ public class TrafficSimulationUI extends JFrame {
     }
 
     private class SimulationPanel extends JPanel {
-        private static final int CELL_SIZE = 40; // Smaller cells for grid
+        private static final int CELL_SIZE = 60; // Larger cells to accommodate sidewalks
         private static final int OFFSET = 50;
+        private static final int SIDEWALK_WIDTH = 8; // Width of sidewalk on each side
+        private static final int ROAD_WIDTH = CELL_SIZE - (SIDEWALK_WIDTH * 2);
 
         @Override
         protected void paintComponent(Graphics g) {
@@ -172,61 +174,190 @@ public class TrafficSimulationUI extends JFrame {
             TrafficMap trafficMap = simulation.getMapManager().getTrafficMap();
             int scale = trafficMap.getScale();
 
-            // Draw streets (light gray background)
-            g.setColor(Color.LIGHT_GRAY);
-            g.fillRect(OFFSET, OFFSET, trafficMap.getWidth() * CELL_SIZE, trafficMap.getHeight() * CELL_SIZE);
+            // Draw background (green for grass/land)
+            g.setColor(new Color(34, 139, 34)); // Forest green
+            g.fillRect(0, 0, getWidth(), getHeight());
 
-            // Draw grid lines and streets
-            g.setColor(Color.DARK_GRAY);
-            for (int x = 0; x <= trafficMap.getWidth(); x++) {
-                g.drawLine(OFFSET + x * CELL_SIZE, OFFSET, OFFSET + x * CELL_SIZE,
-                        OFFSET + trafficMap.getHeight() * CELL_SIZE);
-            }
-            for (int y = 0; y <= trafficMap.getHeight(); y++) {
-                g.drawLine(OFFSET, OFFSET + y * CELL_SIZE,
-                        OFFSET + trafficMap.getWidth() * CELL_SIZE, OFFSET + y * CELL_SIZE);
-            }
+            // Draw the grid with streets and sidewalks
+            drawStreetGrid(g, trafficMap);
 
-            // Draw intersections (dark gray circles)
-            g.setColor(Color.DARK_GRAY);
-            for (TrafficNode node : trafficMap.getNodes().values()) {
-                if (node.getType() == TrafficNode.NodeType.INTERSECTION) {
-                    int x = OFFSET + (node.position.x / scale) * CELL_SIZE;
-                    int y = OFFSET + (node.position.y / scale) * CELL_SIZE;
-                    g.fillOval(x - 3, y - 3, 6, 6);
+            // Draw directed edges (arrows) on the roads
+            drawRoadArrows(g, trafficMap);
+        }
+
+        private void drawStreetGrid(Graphics g, TrafficMap trafficMap) {
+            for (int gridX = 0; gridX < trafficMap.getWidth(); gridX++) {
+                for (int gridY = 0; gridY < trafficMap.getHeight(); gridY++) {
+                    int screenX = OFFSET + gridX * CELL_SIZE;
+                    int screenY = OFFSET + gridY * CELL_SIZE;
+
+                    TrafficNode.NodeType nodeType = determineVisualNodeType(gridX, gridY);
+
+                    switch (nodeType) {
+                        case INTERSECTION:
+                            drawIntersection(g, screenX, screenY);
+                            break;
+                        case STREET:
+                            drawStreetSegment(g, screenX, screenY, gridX, gridY);
+                            break;
+                        case CROSSWALK:
+                            drawCrosswalk(g, screenX, screenY, gridX, gridY);
+                            break;
+                    }
                 }
             }
+        }
 
-            // Draw directed edges (arrows)
-            g.setColor(Color.BLUE);
+        private TrafficNode.NodeType determineVisualNodeType(int gridX, int gridY) {
+            // This matches the TrafficMap's node type determination
+            if (gridX % 2 == 0 && gridY % 2 == 0) {
+                return TrafficNode.NodeType.INTERSECTION;
+            } else if (gridX % 2 == 1 && gridY % 2 == 0) {
+                return TrafficNode.NodeType.STREET; // Horizontal street
+            } else if (gridX % 2 == 0 && gridY % 2 == 1) {
+                return TrafficNode.NodeType.STREET; // Vertical street
+            } else {
+                return TrafficNode.NodeType.CROSSWALK;
+            }
+        }
+
+        private void drawIntersection(Graphics g, int screenX, int screenY) {
+            // Draw intersection (dark asphalt)
+            g.setColor(new Color(64, 64, 64)); // Dark gray for intersection
+            g.fillRect(screenX + SIDEWALK_WIDTH, screenY + SIDEWALK_WIDTH,
+                    ROAD_WIDTH, ROAD_WIDTH);
+
+            // Draw sidewalk around intersection
+            g.setColor(new Color(184, 134, 11)); // Dark goldenrod for sidewalk
+            g.fillRect(screenX, screenY, CELL_SIZE, SIDEWALK_WIDTH); // Top sidewalk
+            g.fillRect(screenX, screenY + CELL_SIZE - SIDEWALK_WIDTH, CELL_SIZE, SIDEWALK_WIDTH); // Bottom sidewalk
+            g.fillRect(screenX, screenY, SIDEWALK_WIDTH, CELL_SIZE); // Left sidewalk
+            g.fillRect(screenX + CELL_SIZE - SIDEWALK_WIDTH, screenY, SIDEWALK_WIDTH, CELL_SIZE); // Right sidewalk
+
+            // Draw intersection markings (white lines)
+            g.setColor(Color.WHITE);
+            g.drawRect(screenX + SIDEWALK_WIDTH, screenY + SIDEWALK_WIDTH,
+                    ROAD_WIDTH - 1, ROAD_WIDTH - 1);
+        }
+
+        private void drawStreetSegment(Graphics g, int screenX, int screenY, int gridX, int gridY) {
+            if (gridX % 2 == 1) { // Horizontal street
+                drawHorizontalStreet(g, screenX, screenY);
+            } else { // Vertical street
+                drawVerticalStreet(g, screenX, screenY);
+            }
+        }
+
+        private void drawHorizontalStreet(Graphics g, int screenX, int screenY) {
+            // Draw road (dark asphalt)
+            g.setColor(new Color(64, 64, 64));
+            g.fillRect(screenX, screenY + SIDEWALK_WIDTH, CELL_SIZE, ROAD_WIDTH);
+
+            // Draw sidewalks (top and bottom)
+            g.setColor(new Color(184, 134, 11));
+            g.fillRect(screenX, screenY, CELL_SIZE, SIDEWALK_WIDTH); // Top sidewalk
+            g.fillRect(screenX, screenY + CELL_SIZE - SIDEWALK_WIDTH, CELL_SIZE, SIDEWALK_WIDTH); // Bottom sidewalk
+
+            // Draw lane markings (dashed white lines)
+            g.setColor(Color.WHITE);
+            int centerY = screenY + CELL_SIZE / 2;
+            for (int x = screenX + 5; x < screenX + CELL_SIZE; x += 10) {
+                g.fillRect(x, centerY - 1, 5, 2);
+            }
+        }
+
+        private void drawVerticalStreet(Graphics g, int screenX, int screenY) {
+            // Draw road (dark asphalt)
+            g.setColor(new Color(64, 64, 64));
+            g.fillRect(screenX + SIDEWALK_WIDTH, screenY, ROAD_WIDTH, CELL_SIZE);
+
+            // Draw sidewalks (left and right)
+            g.setColor(new Color(184, 134, 11));
+            g.fillRect(screenX, screenY, SIDEWALK_WIDTH, CELL_SIZE); // Left sidewalk
+            g.fillRect(screenX + CELL_SIZE - SIDEWALK_WIDTH, screenY, SIDEWALK_WIDTH, CELL_SIZE); // Right sidewalk
+
+            // Draw lane markings (dashed white lines)
+            g.setColor(Color.WHITE);
+            int centerX = screenX + CELL_SIZE / 2;
+            for (int y = screenY + 5; y < screenY + CELL_SIZE; y += 10) {
+                g.fillRect(centerX - 1, y, 2, 5);
+            }
+        }
+
+        private void drawCrosswalk(Graphics g, int screenX, int screenY, int gridX, int gridY) {
+            // Crosswalks are at diagonal positions between intersections
+            g.setColor(new Color(184, 134, 11)); // Sidewalk color
+
+            if (gridX % 2 == 1 && gridY % 2 == 1) {
+                // This is a crosswalk position - draw zebra crossing
+                g.fillRect(screenX, screenY, CELL_SIZE, CELL_SIZE);
+
+                // Draw zebra stripes
+                g.setColor(Color.WHITE);
+                if (gridX > gridY) { // Horizontal crosswalk
+                    for (int x = screenX + 5; x < screenX + CELL_SIZE; x += 10) {
+                        g.fillRect(x, screenY, 5, CELL_SIZE);
+                    }
+                } else { // Vertical crosswalk
+                    for (int y = screenY + 5; y < screenY + CELL_SIZE; y += 10) {
+                        g.fillRect(screenX, y, CELL_SIZE, 5);
+                    }
+                }
+            }
+        }
+
+        private void drawRoadArrows(Graphics g, TrafficMap trafficMap) {
+            g.setColor(Color.YELLOW); // Yellow arrows for better visibility
+
             for (TrafficEdge edge : trafficMap.getEdges().values()) {
                 Position fromPos = edge.getFrom().position;
                 Position toPos = edge.getTo().position;
 
-                int fromX = OFFSET + (fromPos.x / scale) * CELL_SIZE;
-                int fromY = OFFSET + (fromPos.y / scale) * CELL_SIZE;
-                int toX = OFFSET + (toPos.x / scale) * CELL_SIZE;
-                int toY = OFFSET + (toPos.y / scale) * CELL_SIZE;
+                int fromGridX = fromPos.x / trafficMap.getScale();
+                int fromGridY = fromPos.y / trafficMap.getScale();
+                int toGridX = toPos.x / trafficMap.getScale();
+                int toGridY = toPos.y / trafficMap.getScale();
 
-                // Draw arrow line
-                g.drawLine(fromX, fromY, toX, toY);
+                int fromX = OFFSET + fromGridX * CELL_SIZE + CELL_SIZE / 2;
+                int fromY = OFFSET + fromGridY * CELL_SIZE + CELL_SIZE / 2;
+                int toX = OFFSET + toGridX * CELL_SIZE + CELL_SIZE / 2;
+                int toY = OFFSET + toGridY * CELL_SIZE + CELL_SIZE / 2;
 
-                // Draw arrow head
-                drawArrow(g, fromX, fromY, toX, toY);
+                // Only draw arrows for the main road segments (not the intermediate ones)
+                if (isMainRoadSegment(fromGridX, fromGridY, toGridX, toGridY)) {
+                    drawDirectionArrow(g, fromX, fromY, toX, toY);
+                }
             }
         }
 
-        private void drawArrow(Graphics g, int x1, int y1, int x2, int y2) {
-            double angle = Math.atan2(y2 - y1, x2 - x1);
-            int arrowLength = 10;
+        private boolean isMainRoadSegment(int fromX, int fromY, int toX, int toY) {
+            // Check if this is a segment between two intersections (not including street nodes)
+            return (fromX % 2 == 0 && fromY % 2 == 0 && toX % 2 == 0 && toY % 2 == 0);
+        }
 
-            int x3 = (int) (x2 - arrowLength * Math.cos(angle - Math.PI / 6));
-            int y3 = (int) (y2 - arrowLength * Math.sin(angle - Math.PI / 6));
-            int x4 = (int) (x2 - arrowLength * Math.cos(angle + Math.PI / 6));
-            int y4 = (int) (y2 - arrowLength * Math.sin(angle + Math.PI / 6));
+        private void drawDirectionArrow(Graphics g, int fromX, int fromY, int toX, int toY) {
+            // Calculate arrow position (closer to the center of the segment)
+            int arrowX = (fromX + toX) / 2;
+            int arrowY = (fromY + toY) / 2;
 
-            g.drawLine(x2, y2, x3, y3);
-            g.drawLine(x2, y2, x4, y4);
+            double angle = Math.atan2(toY - fromY, toX - fromX);
+            int arrowSize = 6;
+
+            // Draw arrow line
+            Graphics2D g2d = (Graphics2D) g;
+            g2d.setStroke(new BasicStroke(2));
+            g2d.drawLine(arrowX - (int)(arrowSize * 1.5 * Math.cos(angle)),
+                    arrowY - (int)(arrowSize * 1.5 * Math.sin(angle)),
+                    arrowX, arrowY);
+
+            // Draw arrow head
+            int x3 = (int) (arrowX - arrowSize * Math.cos(angle - Math.PI / 6));
+            int y3 = (int) (arrowY - arrowSize * Math.sin(angle - Math.PI / 6));
+            int x4 = (int) (arrowX - arrowSize * Math.cos(angle + Math.PI / 6));
+            int y4 = (int) (arrowY - arrowSize * Math.sin(angle + Math.PI / 6));
+
+            g2d.drawLine(arrowX, arrowY, x3, y3);
+            g2d.drawLine(arrowX, arrowY, x4, y4);
         }
 
         private void drawAgents(Graphics g) {
@@ -237,17 +368,17 @@ public class TrafficSimulationUI extends JFrame {
             TrafficMap trafficMap = simulation.getMapManager().getTrafficMap();
             int scale = trafficMap.getScale();
 
-            // Draw semáforos
+            // Draw semáforos on sidewalks
             for(SemaphoreSimulation semaphoreSimulation : semaphores) {
                 drawSemaphore(g, semaphoreSimulation, trafficMap, scale);
             }
 
-            // Draw trucks
+            // Draw trucks on roads
             for(Truck truck : trucks) {
                 drawTruck(g, truck, trafficMap, scale);
             }
 
-            // Draw cars
+            // Draw cars on roads
             for(Car car : cars) {
                 drawCar(g, car, trafficMap, scale);
             }
@@ -255,16 +386,23 @@ public class TrafficSimulationUI extends JFrame {
 
         private void drawSemaphore(Graphics g, SemaphoreSimulation semaphore, TrafficMap trafficMap, int scale) {
             Position pos = semaphore.getPosition();
-            int x = OFFSET + (pos.x / scale) * CELL_SIZE;
-            int y = OFFSET + (pos.y / scale) * CELL_SIZE;
+            int gridX = pos.x / scale;
+            int gridY = pos.y / scale;
 
-            // Draw semaphore pole
+            int screenX = OFFSET + gridX * CELL_SIZE;
+            int screenY = OFFSET + gridY * CELL_SIZE;
+
+            // Place semaphore on the sidewalk (top-right corner of intersection)
+            int semaphoreX = screenX + CELL_SIZE - SIDEWALK_WIDTH + 2;
+            int semaphoreY = screenY + 5;
+
+            // Draw semaphore pole (on sidewalk)
             g.setColor(Color.BLACK);
-            g.fillRect(x - 1, y - 15, 2, 15);
+            g.fillRect(semaphoreX, semaphoreY, 3, 15);
 
             // Draw semaphore box
             g.setColor(Color.DARK_GRAY);
-            g.fillRect(x - 5, y - 25, 10, 10);
+            g.fillRect(semaphoreX - 3, semaphoreY - 10, 9, 8);
 
             // Draw current light
             Color lightColor = switch(semaphore.getCurrentState()) {
@@ -273,62 +411,91 @@ public class TrafficSimulationUI extends JFrame {
                 case GREEN -> Color.GREEN;
             };
             g.setColor(lightColor);
-            g.fillOval(x - 3, y - 23, 6, 6);
+            g.fillOval(semaphoreX - 2, semaphoreY - 8, 5, 5);
+
+            // Draw semaphore ID label
+            g.setColor(Color.BLACK);
+            g.drawString("S" + semaphore.id, semaphoreX - 5, semaphoreY + 25);
         }
 
         private void drawTruck(Graphics g, Truck truck, TrafficMap trafficMap, int scale) {
             Position frontPos = truck.getCurrentPosition();
             Position rearPos = truck.getRearPosition();
 
-            int frontX = OFFSET + (frontPos.x / scale) * CELL_SIZE;
-            int frontY = OFFSET + (frontPos.y / scale) * CELL_SIZE;
-            int rearX = OFFSET + (rearPos.x / scale) * CELL_SIZE;
-            int rearY = OFFSET + (rearPos.y / scale) * CELL_SIZE;
+            int frontX = OFFSET + (frontPos.x / scale) * CELL_SIZE + CELL_SIZE / 2;
+            int frontY = OFFSET + (frontPos.y / scale) * CELL_SIZE + CELL_SIZE / 2;
+            int rearX = OFFSET + (rearPos.x / scale) * CELL_SIZE + CELL_SIZE / 2;
+            int rearY = OFFSET + (rearPos.y / scale) * CELL_SIZE + CELL_SIZE / 2;
 
             // Color según estado
             Color truckColor = switch(truck.getTruckState()) {
                 case MOVING -> new Color(139, 69, 19); // Brown
                 case WAITING -> Color.ORANGE;
                 case WAITING_SEMAPHORE -> Color.RED;
-                case WAITING_DOUBLE_NODE -> Color.MAGENTA;
                 case FINISHED -> Color.GREEN;
             };
 
             g.setColor(truckColor);
 
-            // Draw truck as a rectangle between front and rear positions
-            int truckX = Math.min(frontX, rearX);
-            int truckY = Math.min(frontY, rearY);
-            int truckWidth = Math.abs(frontX - rearX) + 8;
-            int truckHeight = Math.abs(frontY - rearY) + 8;
+            // Calculate truck position and orientation
+            int truckCenterX = (frontX + rearX) / 2;
+            int truckCenterY = (frontY + rearY) / 2;
+            int truckLength = (int) Math.sqrt(Math.pow(frontX - rearX, 2) + Math.pow(frontY - rearY, 2));
+            double angle = Math.atan2(frontY - rearY, frontX - rearX);
 
-            g.fillRect(truckX - 4, truckY - 4, truckWidth, truckHeight);
+            // Draw truck as a rotated rectangle
+            Graphics2D g2d = (Graphics2D) g;
+            g2d.rotate(angle, truckCenterX, truckCenterY);
+
+            int truckWidth = 12;
+            g2d.fillRect(truckCenterX - truckLength/2, truckCenterY - truckWidth/2,
+                    truckLength, truckWidth);
+
+            // Draw cab (different color)
+            g2d.setColor(new Color(70, 130, 180)); // Steel blue
+            g2d.fillRect(truckCenterX + truckLength/2 - 8, truckCenterY - truckWidth/2, 8, truckWidth);
+
+            g2d.rotate(-angle, truckCenterX, truckCenterY); // Reset rotation
 
             // Draw truck label
             g.setColor(Color.WHITE);
-            g.drawString("T" + truck.id, truckX + truckWidth/2 - 5, truckY + truckHeight/2);
+            g.drawString("T" + truck.id, truckCenterX - 5, truckCenterY + 15);
         }
 
         private void drawCar(Graphics g, Car car, TrafficMap trafficMap, int scale) {
             Position pos = car.getCurrentPosition();
-            int x = OFFSET + (pos.x / scale) * CELL_SIZE;
-            int y = OFFSET + (pos.y / scale) * CELL_SIZE;
+            int gridX = pos.x / scale;
+            int gridY = pos.y / scale;
+
+            int screenX = OFFSET + gridX * CELL_SIZE + CELL_SIZE / 2;
+            int screenY = OFFSET + gridY * CELL_SIZE + CELL_SIZE / 2;
 
             // Color según estado
             Color carColor = switch(car.getCarState()) {
                 case MOVING -> Color.BLUE;
                 case WAITING -> Color.ORANGE;
                 case WAITING_SEMAPHORE -> Color.RED;
-                case IN_INTERSECTION -> Color.CYAN;
                 case FINISHED -> Color.GREEN;
             };
 
             g.setColor(carColor);
-            g.fillRect(x - 6, y - 4, 12, 8);
+
+            // Draw car body
+            g.fillRect(screenX - 8, screenY - 5, 16, 10);
+
+            // Draw car windows
+            g.setColor(Color.CYAN);
+            g.fillRect(screenX - 6, screenY - 3, 5, 4);
+            g.fillRect(screenX + 1, screenY - 3, 5, 4);
+
+            // Draw wheels
+            g.setColor(Color.BLACK);
+            g.fillOval(screenX - 7, screenY + 3, 4, 4);
+            g.fillOval(screenX + 3, screenY + 3, 4, 4);
 
             // Draw car label
             g.setColor(Color.WHITE);
-            g.drawString("C" + car.id, x - 4, y + 3);
+            g.drawString("C" + car.id, screenX - 4, screenY - 8);
         }
 
         @Override

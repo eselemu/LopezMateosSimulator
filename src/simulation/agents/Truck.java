@@ -20,7 +20,6 @@ public class Truck extends Agent {
         MOVING,
         WAITING,
         WAITING_SEMAPHORE,
-        WAITING_DOUBLE_NODE,
         FINISHED
     }
 
@@ -113,11 +112,9 @@ public class Truck extends Agent {
     public void run() {
 
         calculateNodeRoute();
-
-        // Calculate rear position based on the intended direction
         calculateInitialRearPosition();
-
         acquireInitialNodes();
+
         System.out.println("Truck " + id + " started - Front: " + currentPosition + " Rear: " + rearPosition);
 
         while (running && !nodeRoute.isEmpty()) {
@@ -152,7 +149,7 @@ public class Truck extends Agent {
                         Thread.sleep(1000); // Movement time
 
                     } else {
-                        truckState = TruckState.WAITING_DOUBLE_NODE;
+                        truckState = TruckState.WAITING;
                         Thread.sleep(200);
                         System.out.println("Truck " + id + " waiting for node access");
                     }

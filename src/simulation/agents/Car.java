@@ -18,7 +18,6 @@ public class Car extends Agent {
         MOVING,
         WAITING,
         WAITING_SEMAPHORE,
-        IN_INTERSECTION,
         FINISHED
     }
 

@@ -61,7 +61,7 @@ public class ThreadVisualizer extends JFrame implements Runnable {
         // --- Car Table ---
         String[] carColNames = {"Car State", "Counter"};
         String[] carRowNames = {String.valueOf(Car.CarState.MOVING), String.valueOf(Car.CarState.WAITING),
-                String.valueOf(Car.CarState.WAITING_SEMAPHORE), String.valueOf(Car.CarState.IN_INTERSECTION),
+                String.valueOf(Car.CarState.WAITING_SEMAPHORE), "nil",
                 String.valueOf(Car.CarState.FINISHED)};
         this.carsTable = new DefaultTableModel(carColNames, carRowNames.length);
         JTable carJTable = new JTable(this.carsTable);
@@ -160,7 +160,7 @@ public class ThreadVisualizer extends JFrame implements Runnable {
                 int moving = carStateMap.getOrDefault(Car.CarState.MOVING, 0);
                 int waiting = carStateMap.getOrDefault(Car.CarState.WAITING, 0);
                 int waitingSemaphore = carStateMap.getOrDefault(Car.CarState.WAITING_SEMAPHORE, 0);
-                int inIntersection = carStateMap.getOrDefault(Car.CarState.IN_INTERSECTION, 0);
+                int inIntersection = 0;
                 int finished = carStateMap.getOrDefault(Car.CarState.FINISHED, 0);
 
                 carsTable.setValueAt(moving, 0, 1);
