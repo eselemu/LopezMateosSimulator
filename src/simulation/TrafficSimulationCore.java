@@ -43,27 +43,28 @@ public class TrafficSimulationCore {
         SemaphoreSimulation.setLightsTimer(lightsTimers);
 
         Random random = new Random();
-        int maxX = 8; // Maximum x coordinate for destinations
 
-        // Create cars with node-based routing
+        // Create cars with dynamic routing
         for (int i = 0; i < carsNumber; i++) {
-            TrafficNode startNode = mapManager.getStartNode();
-            TrafficNode endNode = mapManager.getEndNode(random.nextInt(6, maxX));
+            TrafficNode startNode = mapManager.getRandomStartNode();
+            TrafficNode endNode = mapManager.getRandomEndNode(startNode);
 
             if (startNode != null && endNode != null) {
                 Car car = new Car(i+1, startNode.position, endNode.position);
                 cars.add(car);
+                System.out.println("Car " + (i+1) + " route: " + startNode.nodeId + " → " + endNode.nodeId);
             }
         }
 
-        // Create trucks with node-based routing
+        // Create trucks with dynamic routing
         for (int i = 0; i < trucksNumber; i++) {
-            TrafficNode startNode = mapManager.getStartNode();
-            TrafficNode endNode = mapManager.getEndNode(random.nextInt(7, maxX));
+            TrafficNode startNode = mapManager.getRandomStartNode();
+            TrafficNode endNode = mapManager.getRandomEndNode(startNode);
 
             if (startNode != null && endNode != null) {
                 Truck truck = new Truck(i+1, startNode.position, endNode.position);
                 trucks.add(truck);
+                System.out.println("Truck " + (i+1) + " route: " + startNode.nodeId + " → " + endNode.nodeId);
             }
         }
 
@@ -192,6 +193,10 @@ public class TrafficSimulationCore {
         // counts.put("Pedestrian", pedestrians.size());
 
         return counts;
+    }
+
+    public MapManager getMapManager() {
+        return mapManager;
     }
 
 }

@@ -5,6 +5,9 @@ import simulation.agents.Car;
 import simulation.agents.SemaphoreSimulation;
 import simulation.agents.Truck;
 import simulation.map.Position;
+import simulation.map.TrafficEdge;
+import simulation.map.TrafficMap;
+import simulation.map.TrafficNode;
 
 import javax.swing.*;
 import java.awt.*;
@@ -155,7 +158,7 @@ public class TrafficSimulationUI extends JFrame {
     }
 
     private class SimulationPanel extends JPanel {
-        private static final int CELL_SIZE = 50;
+        private static final int CELL_SIZE = 40; // Smaller cells for grid
         private static final int OFFSET = 50;
 
         @Override
@@ -166,15 +169,64 @@ public class TrafficSimulationUI extends JFrame {
         }
 
         private void drawMap(Graphics g) {
-            g.setColor(Color.LIGHT_GRAY);
-            // Dibujar calle horizontal
-            g.fillRect(OFFSET, OFFSET, 10 * CELL_SIZE, CELL_SIZE);
+            TrafficMap trafficMap = simulation.getMapManager().getTrafficMap();
+            int scale = trafficMap.getScale();
 
-            g.setColor(Color.WHITE);
-            // Líneas divisorias
-            for(int i = 0; i < 10; i++) {
-                g.fillRect(OFFSET + i * CELL_SIZE + 20, OFFSET + CELL_SIZE/2 - 2, 10, 4);
+            // Draw streets (light gray background)
+            g.setColor(Color.LIGHT_GRAY);
+            g.fillRect(OFFSET, OFFSET, trafficMap.getWidth() * CELL_SIZE, trafficMap.getHeight() * CELL_SIZE);
+
+            // Draw grid lines and streets
+            g.setColor(Color.DARK_GRAY);
+            for (int x = 0; x <= trafficMap.getWidth(); x++) {
+                g.drawLine(OFFSET + x * CELL_SIZE, OFFSET, OFFSET + x * CELL_SIZE,
+                        OFFSET + trafficMap.getHeight() * CELL_SIZE);
             }
+            for (int y = 0; y <= trafficMap.getHeight(); y++) {
+                g.drawLine(OFFSET, OFFSET + y * CELL_SIZE,
+                        OFFSET + trafficMap.getWidth() * CELL_SIZE, OFFSET + y * CELL_SIZE);
+            }
+
+            // Draw intersections (dark gray circles)
+            g.setColor(Color.DARK_GRAY);
+            for (TrafficNode node : trafficMap.getNodes().values()) {
+                if (node.getType() == TrafficNode.NodeType.INTERSECTION) {
+                    int x = OFFSET + (node.position.x / scale) * CELL_SIZE;
+                    int y = OFFSET + (node.position.y / scale) * CELL_SIZE;
+                    g.fillOval(x - 3, y - 3, 6, 6);
+                }
+            }
+
+            // Draw directed edges (arrows)
+            g.setColor(Color.BLUE);
+            for (TrafficEdge edge : trafficMap.getEdges().values()) {
+                Position fromPos = edge.getFrom().position;
+                Position toPos = edge.getTo().position;
+
+                int fromX = OFFSET + (fromPos.x / scale) * CELL_SIZE;
+                int fromY = OFFSET + (fromPos.y / scale) * CELL_SIZE;
+                int toX = OFFSET + (toPos.x / scale) * CELL_SIZE;
+                int toY = OFFSET + (toPos.y / scale) * CELL_SIZE;
+
+                // Draw arrow line
+                g.drawLine(fromX, fromY, toX, toY);
+
+                // Draw arrow head
+                drawArrow(g, fromX, fromY, toX, toY);
+            }
+        }
+
+        private void drawArrow(Graphics g, int x1, int y1, int x2, int y2) {
+            double angle = Math.atan2(y2 - y1, x2 - x1);
+            int arrowLength = 10;
+
+            int x3 = (int) (x2 - arrowLength * Math.cos(angle - Math.PI / 6));
+            int y3 = (int) (y2 - arrowLength * Math.sin(angle - Math.PI / 6));
+            int x4 = (int) (x2 - arrowLength * Math.cos(angle + Math.PI / 6));
+            int y4 = (int) (y2 - arrowLength * Math.sin(angle + Math.PI / 6));
+
+            g.drawLine(x2, y2, x3, y3);
+            g.drawLine(x2, y2, x4, y4);
         }
 
         private void drawAgents(Graphics g) {
@@ -182,56 +234,56 @@ public class TrafficSimulationUI extends JFrame {
             List<Truck> trucks = simulation.getTrucks();
             List<SemaphoreSimulation> semaphores = simulation.getSemaphores();
 
-            // Dibujar semáforos
+            TrafficMap trafficMap = simulation.getMapManager().getTrafficMap();
+            int scale = trafficMap.getScale();
+
+            // Draw semáforos
             for(SemaphoreSimulation semaphoreSimulation : semaphores) {
-                drawSemaphore(g, semaphoreSimulation);
+                drawSemaphore(g, semaphoreSimulation, trafficMap, scale);
             }
 
+            // Draw trucks
             for(Truck truck : trucks) {
-                drawTruck(g, truck);
+                drawTruck(g, truck, trafficMap, scale);
             }
 
-            // Dibujar carros
+            // Draw cars
             for(Car car : cars) {
-                drawCar(g, car);
+                drawCar(g, car, trafficMap, scale);
             }
         }
 
-        private void drawSemaphore(Graphics g, SemaphoreSimulation semaphoreSimulation) {
-            Position pos = semaphoreSimulation.getPosition();
-            int x = OFFSET + pos.x * CELL_SIZE;
-            int y = OFFSET;
+        private void drawSemaphore(Graphics g, SemaphoreSimulation semaphore, TrafficMap trafficMap, int scale) {
+            Position pos = semaphore.getPosition();
+            int x = OFFSET + (pos.x / scale) * CELL_SIZE;
+            int y = OFFSET + (pos.y / scale) * CELL_SIZE;
 
-            // Poste del semáforo
+            // Draw semaphore pole
             g.setColor(Color.BLACK);
-            g.fillRect(x + 20, y - 20, 5, 20);
+            g.fillRect(x - 1, y - 15, 2, 15);
 
-            // Caja del semáforo
+            // Draw semaphore box
             g.setColor(Color.DARK_GRAY);
-            g.fillRect(x + 15, y - 40, 15, 20);
+            g.fillRect(x - 5, y - 25, 10, 10);
 
-            // Luz actual
-            Color lightColor = switch(semaphoreSimulation.getCurrentState()) {
+            // Draw current light
+            Color lightColor = switch(semaphore.getCurrentState()) {
                 case RED -> Color.RED;
                 case YELLOW -> Color.YELLOW;
                 case GREEN -> Color.GREEN;
             };
-
             g.setColor(lightColor);
-            g.fillOval(x + 18, y - 35, 8, 8);
-
-            // Etiqueta
-            g.setColor(Color.BLACK);
-            g.drawString("S" + semaphoreSimulation.id, x, y + 20);
+            g.fillOval(x - 3, y - 23, 6, 6);
         }
 
-        private void drawTruck(Graphics g, Truck truck) {
+        private void drawTruck(Graphics g, Truck truck, TrafficMap trafficMap, int scale) {
             Position frontPos = truck.getCurrentPosition();
             Position rearPos = truck.getRearPosition();
 
-            int frontX = OFFSET + frontPos.x * CELL_SIZE;
-            int rearX = OFFSET + rearPos.x * CELL_SIZE;
-            int y = OFFSET;
+            int frontX = OFFSET + (frontPos.x / scale) * CELL_SIZE;
+            int frontY = OFFSET + (frontPos.y / scale) * CELL_SIZE;
+            int rearX = OFFSET + (rearPos.x / scale) * CELL_SIZE;
+            int rearY = OFFSET + (rearPos.y / scale) * CELL_SIZE;
 
             // Color según estado
             Color truckColor = switch(truck.getTruckState()) {
@@ -244,70 +296,46 @@ public class TrafficSimulationUI extends JFrame {
 
             g.setColor(truckColor);
 
-            // Draw truck body spanning from rear to front
-            int truckStartX = Math.min(frontX, rearX);
-            int truckWidth = Math.abs(frontX - rearX) + CELL_SIZE - 10;
-            g.fillRect(truckStartX, y + 5, truckWidth, 20);
+            // Draw truck as a rectangle between front and rear positions
+            int truckX = Math.min(frontX, rearX);
+            int truckY = Math.min(frontY, rearY);
+            int truckWidth = Math.abs(frontX - rearX) + 8;
+            int truckHeight = Math.abs(frontY - rearY) + 8;
 
-            // Cabina del camión (always at the front)
-            g.setColor(new Color(70, 130, 180)); // Steel blue
-            int cabX = (frontPos.x > rearPos.x) ? frontX - 10 : frontX;
-            g.fillRect(cabX, y + 5, 15, 15);
+            g.fillRect(truckX - 4, truckY - 4, truckWidth, truckHeight);
 
-            // Ruedas (4 ruedas - at both segments)
-            g.setColor(Color.BLACK);
-            g.fillOval(truckStartX + 5, y + 23, 8, 8);
-            g.fillOval(truckStartX + truckWidth - 15, y + 23, 8, 8);
-            g.fillOval(truckStartX + truckWidth/2 - 4, y + 23, 8, 8);
-            g.fillOval(truckStartX + truckWidth/2 + 10, y + 23, 8, 8);
-
-            // Etiqueta
+            // Draw truck label
             g.setColor(Color.WHITE);
-            g.drawString("T" + truck.id, truckStartX + truckWidth/2 - 5, y + 15);
-
-            // Estado
-            g.setColor(Color.BLACK);
-            g.drawString(truck.getTruckState().toString(), truckStartX, y + 45);
+            g.drawString("T" + truck.id, truckX + truckWidth/2 - 5, truckY + truckHeight/2);
         }
 
-        private void drawCar(Graphics g, Car car) {
+        private void drawCar(Graphics g, Car car, TrafficMap trafficMap, int scale) {
             Position pos = car.getCurrentPosition();
-            int x = OFFSET + pos.x * CELL_SIZE;
-            int y = OFFSET;
+            int x = OFFSET + (pos.x / scale) * CELL_SIZE;
+            int y = OFFSET + (pos.y / scale) * CELL_SIZE;
 
             // Color según estado
             Color carColor = switch(car.getCarState()) {
                 case MOVING -> Color.BLUE;
                 case WAITING -> Color.ORANGE;
-                case WAITING_SEMAPHORE ->  Color.RED;
+                case WAITING_SEMAPHORE -> Color.RED;
                 case IN_INTERSECTION -> Color.CYAN;
                 case FINISHED -> Color.GREEN;
             };
 
             g.setColor(carColor);
-            g.fillRect(x, y + 10, 30, 15);
+            g.fillRect(x - 6, y - 4, 12, 8);
 
-            // Ventanas
-            g.setColor(Color.CYAN);
-            g.fillRect(x + 5, y + 12, 8, 8);
-            g.fillRect(x + 17, y + 12, 8, 8);
-
-            // Ruedas
-            g.setColor(Color.BLACK);
-            g.fillOval(x + 3, y + 23, 6, 6);
-            g.fillOval(x + 21, y + 23, 6, 6);
-
-            // Etiqueta
-            g.setColor(Color.BLACK);
-            g.drawString("C" + car.id, x, y + 45);
-
-            // Estado
-            g.drawString(car.getCarState().toString(), x, y + 60);
+            // Draw car label
+            g.setColor(Color.WHITE);
+            g.drawString("C" + car.id, x - 4, y + 3);
         }
 
         @Override
         public Dimension getPreferredSize() {
-            return new Dimension(800, 400);
+            TrafficMap trafficMap = simulation.getMapManager().getTrafficMap();
+            return new Dimension(trafficMap.getWidth() * CELL_SIZE + OFFSET * 2,
+                    trafficMap.getHeight() * CELL_SIZE + OFFSET * 2);
         }
     }
 

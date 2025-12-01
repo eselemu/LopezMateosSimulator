@@ -14,8 +14,8 @@ public class MapManager {
     private List<SemaphoreSimulation> allSemaphores;
 
     private MapManager() {
-        // Create a simple 10x1 linear map
-        this.trafficMap = new TrafficMap(10, 1);
+        // Create a 2D grid map (e.g., 5x5 intersections = 11x11 nodes)
+        this.trafficMap = new TrafficMap(11, 11);
         semaphorePositions = new HashMap<>();
         positionRegistry = new PositionRegistry();
         allSemaphores = new ArrayList<>();
@@ -37,60 +37,35 @@ public class MapManager {
     }
 
     public void initializeSimpleMap() {
-        // Map is already initialized in constructor
-        System.out.println("Simple linear map initialized with " +
-                trafficMap.getNodes().size() + " nodes");
+        System.out.println("2D Grid map initialized with " +
+                trafficMap.getNodes().size() + " nodes and " +
+                trafficMap.getEdges().size() + " directed edges");
     }
 
     /**
-     * Calculate a simple route from start to end node (linear movement)
+     * Calculate route using Dijkstra's algorithm
      */
-    public Queue<TrafficNode> calculateSimpleRoute(TrafficNode startNode, TrafficNode endNode) {
-        Queue<TrafficNode> route = new LinkedList<>();
+    public Queue<TrafficNode> calculateRoute(TrafficNode startNode, TrafficNode endNode) {
+        List<TrafficNode> path = trafficMap.findShortestPath(startNode, endNode);
+        Queue<TrafficNode> route = new LinkedList<>(path);
 
-        // For linear map, just follow the nodes in order
-        List<TrafficNode> allNodes = new ArrayList<>(trafficMap.getNodes().values());
-
-        // Sort nodes by x position to ensure correct order
-        allNodes.sort(Comparator.comparingInt(node -> node.position.x));
-
-        boolean startFound = false;
-        for (TrafficNode node : allNodes) {
-            if (node.equals(startNode)) {
-                startFound = true;
-            }
-            if (startFound) {
-                route.offer(node);
-                if (node.equals(endNode)) {
-                    break;
-                }
-            }
+        // Remove the start node if it's in the route (we're already there)
+        if (!route.isEmpty() && route.peek().equals(startNode)) {
+            route.poll();
         }
 
         return route;
     }
 
     /**
-     * Get the next node in the route for a vehicle
+     * Get random valid start and end positions for vehicles
      */
-    public TrafficNode getNextNode(TrafficNode currentNode, TrafficNode destinationNode) {
-        // For linear map, just get the node with next higher x coordinate
-        List<TrafficNode> allNodes = new ArrayList<>(trafficMap.getNodes().values());
-        allNodes.sort(Comparator.comparingInt(node -> node.position.x));
+    public TrafficNode getRandomStartNode() {
+        return trafficMap.getRandomValidStartNode();
+    }
 
-        int currentIndex = -1;
-        for (int i = 0; i < allNodes.size(); i++) {
-            if (allNodes.get(i).equals(currentNode)) {
-                currentIndex = i;
-                break;
-            }
-        }
-
-        if (currentIndex != -1 && currentIndex < allNodes.size() - 1) {
-            return allNodes.get(currentIndex + 1);
-        }
-
-        return null;
+    public TrafficNode getRandomEndNode(TrafficNode startNode) {
+        return trafficMap.getRandomValidEndNode(startNode);
     }
 
     /**
@@ -100,21 +75,7 @@ public class MapManager {
         return trafficMap.getNodeAt(position);
     }
 
-    /**
-     * Get start and end nodes for vehicle creation
-     */
-    public TrafficNode getStartNode() {
-        return trafficMap.getNodeById("N_0_0");
-    }
-
-    public TrafficNode getEndNode(int maxX) {
-        return trafficMap.getNodeById("N_" + maxX + "_0");
-    }
-
-    public TrafficNode getTrafficNode(Position from, Position to) {
-        // This method is now deprecated - use node-based routing instead
-        return getNodeAtPosition(to);
-    }
+    // ... (keep all other existing methods the same)
 
     public void moveCar(Car car, Position from, Position to) {
         positionRegistry.moveAgent("car_" + car.id, to);

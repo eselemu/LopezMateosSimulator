@@ -41,11 +41,8 @@ public class Car extends Agent {
 
     private void calculateNodeRoute() {
         if (currentNode != null && destinationNode != null) {
-            nodeRoute = mapManager.calculateSimpleRoute(currentNode, destinationNode);
-            // Remove the current node from the route (we're already there)
-            if (!nodeRoute.isEmpty()) {
-                nodeRoute.poll();
-            }
+            // Use the new dynamic route calculation
+            nodeRoute = mapManager.calculateRoute(currentNode, destinationNode);
             System.out.println("Car " + id + " route calculated: " + nodeRoute.size() + " nodes");
         } else {
             System.out.println("Car " + id + " could not find start or end node!");

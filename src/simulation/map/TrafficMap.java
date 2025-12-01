@@ -11,7 +11,7 @@ public class TrafficMap {
     private int width, height;
     private TrafficNode[][] grid;
 
-    private int scale = 1;
+    private int scale = 50;
 
     public TrafficMap(int width, int height) {
         this.width = width;
@@ -22,10 +22,6 @@ public class TrafficMap {
         initializeGridMap();
     }
 
-    private void initializeSimpleMap(){
-
-    }
-
     private void initializeGridMap() {
         boolean toggle = true;
         // Create nodes in a grid pattern
@@ -33,13 +29,13 @@ public class TrafficMap {
             for (int y = 0; y < height; y++) {
                 TrafficNode.NodeType type = determineNodeType(x, y);
                 String nodeId = "N_" + x + "_" + y;
-                Position pos = new Position(x * scale, y * scale); // Scale for visualization
+                Position pos = new Position(x * scale, y * scale);
 
                 TrafficNode node = new TrafficNode(nodeId, pos, type);
                 nodes.put(nodeId, node);
                 grid[x][y] = node;
 
-                // Add semaphore at intersections
+                // Add semaphore at intersections (only some intersections)
                 if (type == TrafficNode.NodeType.INTERSECTION) {
                     toggle = !toggle;
                     if(toggle){
@@ -51,7 +47,7 @@ public class TrafficMap {
             }
         }
 
-        createGridEdges();
+        createUnidirectionalGridEdges();
     }
 
     private TrafficNode.NodeType determineNodeType(int x, int y) {
@@ -67,52 +63,102 @@ public class TrafficMap {
         }
     }
 
-    private void createGridEdges() {
-        // Create horizontal edges
-        for (int y = 0; y < height; y += 2) {
-            for (int x = 0; x < width - 2; x += 2) {
-                TrafficNode from = grid[x][y];
-                TrafficNode to = grid[x + 2][y];
+    private void createUnidirectionalGridEdges() {
+        // Create unidirectional edges following the pattern:
+        // Even rows: left → right
+        // Odd rows: right → left
+        // Even columns: top → bottom
+        // Odd columns: bottom → top
 
-                if (from != null && to != null) {
-                    // Create edge with intermediate street node
-                    TrafficNode streetNode = grid[x + 1][y];
-                    createEdgeWithIntermediate(from, streetNode, to, "H_" + x + "_" + y);
+        // Horizontal edges (rows)
+        for (int y = 0; y < height; y += 2) { // Only intersection rows
+            if (y % 4 == 0) { // Even rows: left → right
+                for (int x = 0; x < width - 2; x += 2) {
+                    createUnidirectionalHorizontalEdge(x, y, x + 2, y, "E");
+                }
+            } else { // Odd rows: right → left
+                for (int x = width - 1; x >= 2; x -= 2) {
+                    createUnidirectionalHorizontalEdge(x, y, x - 2, y, "W");
                 }
             }
         }
 
-        // Create vertical edges
-        for (int x = 0; x < width; x += 2) {
-            for (int y = 0; y < height - 2; y += 2) {
-                TrafficNode from = grid[x][y];
-                TrafficNode to = grid[x][y + 2];
-
-                if (from != null && to != null) {
-                    // Create edge with intermediate street node
-                    TrafficNode streetNode = grid[x][y + 1];
-                    createEdgeWithIntermediate(from, streetNode, to, "V_" + x + "_" + y);
+        // Vertical edges (columns)
+        for (int x = 0; x < width; x += 2) { // Only intersection columns
+            if (x % 4 == 0) { // Even columns: top → bottom
+                for (int y = 0; y < height - 2; y += 2) {
+                    createUnidirectionalVerticalEdge(x, y, x, y + 2, "S");
+                }
+            } else { // Odd columns: bottom → top
+                for (int y = height - 1; y >= 2; y -= 2) {
+                    createUnidirectionalVerticalEdge(x, y, x, y - 2, "N");
                 }
             }
         }
     }
 
-    private void createEdgeWithIntermediate(TrafficNode from, TrafficNode intermediate, TrafficNode to, String baseId) {
-        // Edge from intersection to street
-        TrafficEdge edge1 = new TrafficEdge(baseId + "_1", from, intermediate, scale);
-        edges.put(edge1.getEdgeId(), edge1);
-        from.addOutgoingEdge(edge1);
-        intermediate.addIncomingEdge(edge1);
+    private void createUnidirectionalHorizontalEdge(int fromX, int fromY, int toX, int toY, String direction) {
+        TrafficNode from = grid[fromX][fromY];
+        TrafficNode to = grid[toX][toY];
+        TrafficNode streetNode = grid[(fromX + toX) / 2][fromY]; // Intermediate street node
 
-        // Edge from street to intersection
-        TrafficEdge edge2 = new TrafficEdge(baseId + "_2", intermediate, to, scale);
-        edges.put(edge2.getEdgeId(), edge2);
-        intermediate.addOutgoingEdge(edge2);
-        to.addIncomingEdge(edge2);
+        if (from != null && to != null && streetNode != null) {
+            String baseId = direction + "_" + fromX + "_" + fromY + "_to_" + toX + "_" + toY;
+
+            // Edge from intersection to street
+            TrafficEdge edge1 = new TrafficEdge(baseId + "_1", from, streetNode, scale);
+            edges.put(edge1.getEdgeId(), edge1);
+            from.addOutgoingEdge(edge1);
+            streetNode.addIncomingEdge(edge1);
+
+            // Edge from street to intersection
+            TrafficEdge edge2 = new TrafficEdge(baseId + "_2", streetNode, to, scale);
+            edges.put(edge2.getEdgeId(), edge2);
+            streetNode.addOutgoingEdge(edge2);
+            to.addIncomingEdge(edge2);
+
+            System.out.println("Created horizontal edge: " + from.nodeId + " → " + to.nodeId + " (" + direction + ")");
+        }
     }
 
+    private void createUnidirectionalVerticalEdge(int fromX, int fromY, int toX, int toY, String direction) {
+        TrafficNode from = grid[fromX][fromY];
+        TrafficNode to = grid[toX][toY];
+        TrafficNode streetNode = grid[fromX][(fromY + toY) / 2]; // Intermediate street node
+
+        if (from != null && to != null && streetNode != null) {
+            String baseId = direction + "_" + fromX + "_" + fromY + "_to_" + toX + "_" + toY;
+
+            // Edge from intersection to street
+            TrafficEdge edge1 = new TrafficEdge(baseId + "_1", from, streetNode, scale);
+            edges.put(edge1.getEdgeId(), edge1);
+            from.addOutgoingEdge(edge1);
+            streetNode.addIncomingEdge(edge1);
+
+            // Edge from street to intersection
+            TrafficEdge edge2 = new TrafficEdge(baseId + "_2", streetNode, to, scale);
+            edges.put(edge2.getEdgeId(), edge2);
+            streetNode.addOutgoingEdge(edge2);
+            to.addIncomingEdge(edge2);
+
+            System.out.println("Created vertical edge: " + from.nodeId + " → " + to.nodeId + " (" + direction + ")");
+        }
+    }
+
+    /**
+     * Enhanced Dijkstra's algorithm for unidirectional graph
+     */
     public List<TrafficNode> findShortestPath(TrafficNode start, TrafficNode end) {
-        // Dijkstra's algorithm implementation
+        if (start == null || end == null) {
+            System.out.println("Invalid start or end node");
+            return Collections.emptyList();
+        }
+
+        if (start.equals(end)) {
+            System.out.println("Start and end are the same");
+            return Arrays.asList(start);
+        }
+
         Map<TrafficNode, Double> distances = new HashMap<>();
         Map<TrafficNode, TrafficNode> previous = new HashMap<>();
         PriorityQueue<TrafficNode> queue = new PriorityQueue<>(
@@ -133,9 +179,10 @@ public class TrafficMap {
                 break;
             }
 
+            // Explore all outgoing edges (unidirectional graph)
             for (TrafficEdge edge : current.getOutgoingEdges()) {
                 TrafficNode neighbor = edge.getTo();
-                double newDist = distances.get(current) + 1;
+                double newDist = distances.get(current) + edge.getLength();
 
                 if (newDist < distances.get(neighbor)) {
                     distances.put(neighbor, newDist);
@@ -145,8 +192,16 @@ public class TrafficMap {
             }
         }
 
+        // Check if path exists
+        if (!previous.containsKey(end)) {
+            System.out.println("No path exists from " + start.nodeId + " to " + end.nodeId);
+            return Collections.emptyList();
+        }
+
         // Reconstruct path
-        return reconstructPath(previous, end);
+        List<TrafficNode> path = reconstructPath(previous, end);
+        System.out.println("Path found: " + path.size() + " nodes from " + start.nodeId + " to " + end.nodeId);
+        return path;
     }
 
     private List<TrafficNode> reconstructPath(Map<TrafficNode, TrafficNode> previous, TrafficNode end) {
@@ -155,6 +210,58 @@ public class TrafficMap {
             path.add(0, node);
         }
         return path;
+    }
+
+    /**
+     * Get valid start nodes (only those with outgoing edges)
+     */
+    public List<TrafficNode> getValidStartNodes() {
+        List<TrafficNode> startNodes = new ArrayList<>();
+
+        // Only intersections can be start nodes
+        for (TrafficNode node : nodes.values()) {
+            if (node.getType() == TrafficNode.NodeType.INTERSECTION &&
+                    !node.getOutgoingEdges().isEmpty()) {
+                startNodes.add(node);
+            }
+        }
+
+        return startNodes;
+    }
+
+    /**
+     * Get valid end nodes that are reachable from start node
+     */
+    public List<TrafficNode> getValidEndNodes(TrafficNode startNode) {
+        List<TrafficNode> endNodes = new ArrayList<>();
+
+        if (startNode == null) return endNodes;
+
+        // Use BFS to find all reachable nodes
+        Set<TrafficNode> visited = new HashSet<>();
+        Queue<TrafficNode> queue = new LinkedList<>();
+        queue.offer(startNode);
+        visited.add(startNode);
+
+        while (!queue.isEmpty()) {
+            TrafficNode current = queue.poll();
+
+            // Add as potential end node if it's a different intersection
+            if (current.getType() == TrafficNode.NodeType.INTERSECTION &&
+                    !current.equals(startNode)) {
+                endNodes.add(current);
+            }
+
+            for (TrafficEdge edge : current.getOutgoingEdges()) {
+                TrafficNode neighbor = edge.getTo();
+                if (!visited.contains(neighbor)) {
+                    visited.add(neighbor);
+                    queue.offer(neighbor);
+                }
+            }
+        }
+
+        return endNodes;
     }
 
     public TrafficNode getNodeAt(Position position) {
@@ -171,15 +278,18 @@ public class TrafficMap {
         return nodes.get(nodeId);
     }
 
-    public TrafficNode getRandomIntersection() {
-        List<TrafficNode> intersections = new ArrayList<>();
-        for (TrafficNode node : nodes.values()) {
-            if (node.getType() == TrafficNode.NodeType.INTERSECTION) {
-                intersections.add(node);
-            }
+    public TrafficNode getRandomValidStartNode() {
+        List<TrafficNode> validStarts = getValidStartNodes();
+        if (!validStarts.isEmpty()) {
+            return validStarts.get(new Random().nextInt(validStarts.size()));
         }
-        if (!intersections.isEmpty()) {
-            return intersections.get(new Random().nextInt(intersections.size()));
+        return null;
+    }
+
+    public TrafficNode getRandomValidEndNode(TrafficNode startNode) {
+        List<TrafficNode> validEnds = getValidEndNodes(startNode);
+        if (!validEnds.isEmpty()) {
+            return validEnds.get(new Random().nextInt(validEnds.size()));
         }
         return null;
     }
@@ -190,4 +300,5 @@ public class TrafficMap {
     public int getWidth() { return width; }
     public int getHeight() { return height; }
     public TrafficNode[][] getGrid() { return grid; }
+    public int getScale() { return scale; }
 }
