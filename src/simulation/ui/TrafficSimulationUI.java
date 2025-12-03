@@ -128,7 +128,7 @@ public class TrafficSimulationUI extends JFrame {
         });
 
         pack();
-        setSize(900, 700); // Increased height to accommodate larger simulation area
+        setSize(800, 850); // Increased height to accommodate larger simulation area
         setLocationRelativeTo(null);
 
         Timer timer = new Timer(100, e -> updateUI());

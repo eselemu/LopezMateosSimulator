@@ -1,0 +1,5 @@
+javac -d out/production/FinalProject -cp "lib/gson-2.10.1.jar" (gci -r src -filter *.java).FullName
+
+java -cp "out/production/FinalProject;lib/gson-2.10.1.jar" ServerMain  
+
+java -cp "out/production/FinalProject;lib/gson-2.10.1.jar" ClientMain localhost 1099

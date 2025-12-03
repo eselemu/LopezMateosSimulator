@@ -1,10 +1,12 @@
 package simulation;
 
 import simulation.agents.*;
+import simulation.distributed.SemaphoreRegistry;
+import simulation.distributed.DistributedSemaphoreClient;
 import simulation.map.MapManager;
-import simulation.map.Position;
 import simulation.map.TrafficNode;
 
+import java.rmi.RemoteException;
 import java.util.*;
 
 public class TrafficSimulationCore {
@@ -17,13 +19,23 @@ public class TrafficSimulationCore {
     private boolean isRunning;
     private MapManager mapManager;
     public static volatile Map<Thread.State, Integer> counts;
-    private int[] lightsTimers;
+    
+    // Distributed mode components
+    private SemaphoreRegistry semaphoreRegistry;
+    private DistributedSemaphoreClient distributedClient;
+    private boolean distributedModeEnabled;
+    private int registryPort;
+    
     private TrafficSimulationCore(){
         cars = new ArrayList<>();
         trucks = new ArrayList<>();
         semaphores = new ArrayList<>();
         pedestrians = new ArrayList<>();
         mapManager = MapManager.getInstance();
+        distributedModeEnabled = false;
+        registryPort = 1099; // Default RMI port
+        semaphoreRegistry = SemaphoreRegistry.getInstance();
+        distributedClient = DistributedSemaphoreClient.getInstance();
     }
 
     public static TrafficSimulationCore getInstance(){
@@ -40,8 +52,6 @@ public class TrafficSimulationCore {
 
         int[] lightsTimers = {greenLightTimer, yellowLightTimer, redLightTimer};
         SemaphoreSimulation.setLightsTimer(lightsTimers);
-
-        Random random = new Random();
 
         // Create cars with dynamic routing
         for (int i = 0; i < carsNumber; i++) {
@@ -75,6 +85,17 @@ public class TrafficSimulationCore {
         }
 
         semaphores.addAll(mapManager.getAllSemaphores());
+        
+        // If distributed mode is already enabled, register new semaphores
+        if (distributedModeEnabled && !semaphores.isEmpty()) {
+            try {
+                semaphoreRegistry.registerSemaphores(semaphores);
+                System.out.println("✅ Auto-registered " + semaphores.size() + 
+                                 " semaphores in distributed mode");
+            } catch (RemoteException e) {
+                System.err.println("⚠️ Failed to auto-register semaphores: " + e.getMessage());
+            }
+        }
     }
 
     // In the startSimulation method, add pedestrian start:
@@ -123,6 +144,9 @@ public class TrafficSimulationCore {
             pedestrian.stopPedestrian();
         }
 
+        // Note: We don't disconnect from distributed manager here
+        // to allow reconnection. Call disconnectFromTrafficManager() explicitly if needed.
+
         System.out.println("Simulación detenida");
     }
 
@@ -133,8 +157,108 @@ public class TrafficSimulationCore {
     public List<Pedestrian> getPedestrians() { return pedestrians; }
     public boolean isRunning() { return isRunning; }
 
-    public void connectToTrafficManager(){}
-    public void disconnectFromTrafficManager(){}
+    /**
+     * Connect to distributed traffic manager by starting RMI registry and registering semaphores.
+     * This enables distributed mode where semaphores can be accessed remotely via RMI.
+     * 
+     * @param port The port for the RMI registry (default: 1099)
+     * @return true if connection successful, false otherwise
+     */
+    public boolean connectToTrafficManager(int port) {
+        if (distributedModeEnabled) {
+            System.out.println("⚠️ Already connected to distributed traffic manager");
+            return true;
+        }
+
+        try {
+            this.registryPort = port > 0 ? port : 1099;
+            
+            // Start RMI registry
+            semaphoreRegistry.startRegistry(registryPort);
+            
+            // Register all semaphores
+            if (!semaphores.isEmpty()) {
+                semaphoreRegistry.registerSemaphores(semaphores);
+                System.out.println("✅ Registered " + semaphores.size() + 
+                                 " semaphores in distributed mode");
+            }
+            
+            // Configure distributed client
+            distributedClient.configureDefaults("localhost", registryPort);
+            
+            distributedModeEnabled = true;
+            System.out.println("✅ Connected to distributed traffic manager on port " + registryPort);
+            return true;
+            
+        } catch (RemoteException e) {
+            System.err.println("❌ Failed to connect to distributed traffic manager: " + e.getMessage());
+            e.printStackTrace();
+            distributedModeEnabled = false;
+            return false;
+        }
+    }
+
+    /**
+     * Connect to distributed traffic manager using default port (1099)
+     * @return true if connection successful, false otherwise
+     */
+    public boolean connectToTrafficManager() {
+        return connectToTrafficManager(1099);
+    }
+
+    /**
+     * Disconnect from distributed traffic manager by stopping RMI registry.
+     * This disables distributed mode and unregisters all semaphores.
+     */
+    public void disconnectFromTrafficManager() {
+        if (!distributedModeEnabled) {
+            System.out.println("⚠️ Not connected to distributed traffic manager");
+            return;
+        }
+
+        try {
+            semaphoreRegistry.stopRegistry();
+            distributedClient.clearCache();
+            distributedModeEnabled = false;
+            System.out.println("✅ Disconnected from distributed traffic manager");
+        } catch (Exception e) {
+            System.err.println("❌ Error disconnecting from distributed traffic manager: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /**
+     * Check if distributed mode is enabled
+     * @return true if distributed mode is active
+     */
+    public boolean isDistributedModeEnabled() {
+        return distributedModeEnabled;
+    }
+
+    /**
+     * Get the RMI registry port
+     * @return The port number
+     */
+    public int getRegistryPort() {
+        return registryPort;
+    }
+
+    /**
+     * Get statistics about distributed connections
+     * @return Statistics string
+     */
+    public String getDistributedStatistics() {
+        if (!distributedModeEnabled) {
+            return "Distributed mode is not enabled";
+        }
+        
+        StringBuilder stats = new StringBuilder();
+        stats.append("Distributed Mode Statistics:\n");
+        stats.append("  Registry Port: ").append(registryPort).append("\n");
+        stats.append("  Registered Semaphores: ").append(semaphoreRegistry.getRegisteredCount()).append("\n");
+        stats.append("\n").append(distributedClient.getStatistics());
+        return stats.toString();
+    }
 
     public  Map<Thread.State, Integer> getThreadStateCounts() {
         Map<Thread.State, Integer> counts = new HashMap<>();
@@ -149,15 +273,15 @@ public class TrafficSimulationCore {
             counts.put(state, counts.getOrDefault(state, 0) + 1);
         }
 
-//        for (Pedestrian pedestrian : pedestrians) {
-//            Thread.State state = pedestrian.getState();
-//            counts.put(state, counts.getOrDefault(state, 0) + 1);
-//        }
+        for (Pedestrian pedestrian : pedestrians) {
+            Thread.State state = pedestrian.getState();
+            counts.put(state, counts.getOrDefault(state, 0) + 1);
+        }
 
-//        for (Truck truck : trucks) {
-//            Thread.State state = truck.getState();
-//            counts.put(state, counts.getOrDefault(state, 0) + 1);
-//        }
+        for (Truck truck : trucks) {
+            Thread.State state = truck.getState();
+            counts.put(state, counts.getOrDefault(state, 0) + 1);
+        }
 
         return counts;
     }
@@ -211,6 +335,14 @@ public class TrafficSimulationCore {
 
     public MapManager getMapManager() {
         return mapManager;
+    }
+
+    /**
+     * Get the distributed semaphore client instance
+     * @return The DistributedSemaphoreClient instance
+     */
+    public DistributedSemaphoreClient getDistributedClient() {
+        return distributedClient;
     }
 
 }

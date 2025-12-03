@@ -20,7 +20,7 @@ public class TrafficNode {
     private List<TrafficEdge> outgoingEdges;
     private List<TrafficEdge> incomingEdges;
     private ReentrantLock nodeLock;
-    private Agent occupyingAgent;
+    private volatile Agent occupyingAgent;
     private SemaphoreSimulation semaphore;
 
     public TrafficNode(String nodeId, Position position, NodeType type) {
@@ -70,5 +70,14 @@ public class TrafficNode {
     public SemaphoreSimulation getSemaphore() { return semaphore; }
     public void setSemaphore(SemaphoreSimulation semaphore) { this.semaphore = semaphore; }
     public String getTrafficNodeId() { return nodeId; }
-    public int getCurrentOccupancy() { return 1; }
+
+    public int getCurrentOccupancy() {
+        if (occupyingAgent == null) {
+            return 0;
+        }else {
+            return 1;
+        }
+    }
+
+    public NodeType getNodeType() { return type; }
 }

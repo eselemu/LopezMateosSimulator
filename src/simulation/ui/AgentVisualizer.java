@@ -35,8 +35,6 @@ public class AgentVisualizer extends JFrame implements Runnable {
         add(scrollPane, BorderLayout.CENTER);
 
 
-
-
         setVisible(true);
     }
 
@@ -54,6 +52,8 @@ public class AgentVisualizer extends JFrame implements Runnable {
                 table.addRow(new Object[]{"Agent Car", "Existen " + agentCount.getOrDefault("Car", 0) + " agentes"});
                 table.addRow(new Object[]{"Agent Semaphore", "Existen " + agentCount.getOrDefault("Semaphore", 0) + " agentes"});
                 table.addRow(new Object[]{"Agent Pedestrian", "Existen " + agentCount.getOrDefault("Pedestrian", 0) + " agentes"});
+                table.addRow(new Object[]{"Agent Truck", "Existen " + agentCount.getOrDefault("Truck", 0) + " agentes"});
+
 
                 //Buffers y zonas critica
                 int bufferIndex = 0;
@@ -62,8 +62,8 @@ public class AgentVisualizer extends JFrame implements Runnable {
 
                     // Buffer
                     table.addRow(new Object[]{
-                            "Buffer <Segmento " + bufferIndex + ">",
-                            occupancy + " / " + 1 + " ocupado(s)"
+                            "Buffer < " + segment.getNodeType() + "> Node Index [" + bufferIndex + "]: ",
+                            occupancy + " / " + 1 + " occupied"
                     });
 
                     // Zona crítica (solo si está ocupada)

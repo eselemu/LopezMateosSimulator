@@ -1,8 +1,11 @@
 package simulation.agents;
 
+import simulation.distributed.DistributedSemaphoreClient;
+import simulation.distributed.LightStateDTO;
 import simulation.map.MapManager;
 import simulation.map.Position;
 import simulation.map.TrafficNode;
+import simulation.TrafficSimulationCore;
 
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -13,6 +16,8 @@ public class Car extends Agent {
     private TrafficNode destinationNode;
     private Queue<TrafficNode> nodeRoute;
     private MapManager mapManager;
+    private DistributedSemaphoreClient distributedClient;
+    private TrafficSimulationCore simulationCore;
 
     public enum CarState {
         MOVING,
@@ -31,6 +36,8 @@ public class Car extends Agent {
         this.carState = CarState.MOVING;
         this.mapManager = MapManager.getInstance();
         this.nodeRoute = new LinkedBlockingQueue<>();
+        this.distributedClient = DistributedSemaphoreClient.getInstance();
+        this.simulationCore = TrafficSimulationCore.getInstance();
 
         // Convert positions to nodes and calculate route
         this.currentNode = mapManager.getNodeAtPosition(start);
@@ -119,28 +126,95 @@ public class Car extends Agent {
         }
     }
 
+    /**
+     * Check traffic light at current position.
+     * Uses distributed semaphore if distributed mode is enabled, otherwise uses local semaphore.
+     */
     private void checkTrafficLight(Position position) {
         SemaphoreSimulation semaphore = mapManager.getSemaphoreAt(position);
-        if (semaphore != null) {
-            if (semaphore.getCurrentState() == SemaphoreSimulation.LightState.YELLOW || semaphore.getCurrentState() == SemaphoreSimulation.LightState.RED) {
-                carState = CarState.WAITING_SEMAPHORE;
-                System.out.println("Car " + id + " detected red light at position " + position + ", waiting...");
+        if (semaphore == null) {
+            carState = CarState.MOVING;
+            return;
+        }
 
-                try {
-                    semaphore.waitForGreenLight();
-                    carState = CarState.MOVING;
-                    System.out.println("Car " + id + " can proceed - green light!");
+        // Check if distributed mode is enabled
+        boolean useDistributed = simulationCore.isDistributedModeEnabled();
+        
+        if (useDistributed) {
+            // Use distributed semaphore client
+            checkTrafficLightDistributed(semaphore.id);
+        } else {
+            // Use local semaphore
+            checkTrafficLightLocal(semaphore);
+        }
+    }
 
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    System.out.println("Car " + id + " interrupted while waiting for semaphore");
+    /**
+     * Check traffic light using distributed semaphore client
+     */
+    private void checkTrafficLightDistributed(int semaphoreId) {
+        LightStateDTO stateDTO = distributedClient.getCurrentState(semaphoreId);
+        if (stateDTO == null) {
+            // Fallback to local if distributed fails
+            SemaphoreSimulation semaphore = mapManager.getSemaphoreAt(currentPosition);
+            if (semaphore != null) {
+                checkTrafficLightLocal(semaphore);
+            }
+            return;
+        }
+
+        // Check current state
+        if (stateDTO.currentState == LightStateDTO.State.YELLOW || 
+            stateDTO.currentState == LightStateDTO.State.RED) {
+            carState = CarState.WAITING_SEMAPHORE;
+            System.out.println("Car " + id + " detected " + stateDTO.currentState + 
+                           " light at distributed semaphore " + semaphoreId + ", waiting...");
+
+            // Request green light and wait
+            boolean canProceed = false;
+            while (running && !canProceed) {
+                canProceed = distributedClient.requestGreenLight(semaphoreId, id);
+                if (!canProceed) {
+                    try {
+                        Thread.sleep(100); // Wait before retrying
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
                 }
-            } else {
+            }
+
+            if (canProceed) {
                 carState = CarState.MOVING;
-                System.out.println("Car " + id + " green light, proceeding...");
+                System.out.println("Car " + id + " can proceed - green light from distributed semaphore " + semaphoreId);
             }
         } else {
             carState = CarState.MOVING;
+            System.out.println("Car " + id + " green light from distributed semaphore " + semaphoreId + ", proceeding...");
+        }
+    }
+
+    /**
+     * Check traffic light using local semaphore
+     */
+    private void checkTrafficLightLocal(SemaphoreSimulation semaphore) {
+        if (semaphore.getCurrentState() == SemaphoreSimulation.LightState.YELLOW || 
+            semaphore.getCurrentState() == SemaphoreSimulation.LightState.RED) {
+            carState = CarState.WAITING_SEMAPHORE;
+            System.out.println("Car " + id + " detected red light at position " + currentPosition + ", waiting...");
+
+            try {
+                semaphore.waitForGreenLight();
+                carState = CarState.MOVING;
+                System.out.println("Car " + id + " can proceed - green light!");
+
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                System.out.println("Car " + id + " interrupted while waiting for semaphore");
+            }
+        } else {
+            carState = CarState.MOVING;
+            System.out.println("Car " + id + " green light, proceeding...");
         }
     }
 

@@ -1,7 +1,10 @@
 package simulation.agents;
 
+import simulation.distributed.DistributedSemaphoreClient;
+import simulation.distributed.LightStateDTO;
 import simulation.map.MapManager;
 import simulation.map.Position;
+import simulation.TrafficSimulationCore;
 
 import java.util.List;
 import java.util.Random;
@@ -12,6 +15,8 @@ public class Pedestrian extends Agent {
     private SemaphoreSimulation currentSemaphore;
     private Random random;
     private int crossingProgress; // Track crossing progress 0-100%
+    private DistributedSemaphoreClient distributedClient;
+    private TrafficSimulationCore simulationCore;
 
     public enum PedestrianState {
         WAITING_SEMAPHORE,
@@ -29,6 +34,8 @@ public class Pedestrian extends Agent {
         this.mapManager = MapManager.getInstance();
         this.random = new Random();
         this.crossingProgress = 0;
+        this.distributedClient = DistributedSemaphoreClient.getInstance();
+        this.simulationCore = TrafficSimulationCore.getInstance();
 
         initializeAtRandomSemaphore();
     }
@@ -78,14 +85,27 @@ public class Pedestrian extends Agent {
         System.out.println("Peatón " + id + " finalizado");
     }
 
+    /**
+     * Handle waiting for semaphore to allow crossing.
+     * Uses distributed semaphore if distributed mode is enabled, otherwise uses local semaphore.
+     */
     private void handleWaitingSemaphore() throws InterruptedException {
         if (currentSemaphore == null) {
             pedestrianState = PedestrianState.FINISHED;
             return;
         }
 
-        // Try to cross when semaphore is red
-        boolean canCross = currentSemaphore.waitForRedLightAndCross();
+        // Check if distributed mode is enabled
+        boolean useDistributed = simulationCore.isDistributedModeEnabled();
+        
+        boolean canCross;
+        if (useDistributed) {
+            // Use distributed semaphore client
+            canCross = handleWaitingSemaphoreDistributed();
+        } else {
+            // Use local semaphore
+            canCross = currentSemaphore.waitForRedLightAndCross();
+        }
 
         if (canCross) {
             pedestrianState = PedestrianState.CROSSING;
@@ -95,6 +115,40 @@ public class Pedestrian extends Agent {
             // Couldn't cross, wait and try again
             Thread.sleep(500);
         }
+    }
+
+    /**
+     * Handle waiting for semaphore using distributed client
+     */
+    private boolean handleWaitingSemaphoreDistributed() {
+        if (currentSemaphore == null) {
+            return false;
+        }
+
+        int semaphoreId = currentSemaphore.id;
+        
+        // Check if semaphore is red
+        LightStateDTO stateDTO = distributedClient.getCurrentState(semaphoreId);
+        if (stateDTO == null || stateDTO.currentState != LightStateDTO.State.RED) {
+            // Fallback to local if distributed fails or not red
+            try {
+                return currentSemaphore.waitForRedLightAndCross();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return false;
+            }
+        }
+
+        // Request crossing permission
+        boolean canCross = distributedClient.requestCrossing(semaphoreId, id);
+        
+        if (canCross) {
+            System.out.println("Pedestrian " + id + " granted crossing permission from distributed semaphore " + semaphoreId);
+        } else {
+            System.out.println("Pedestrian " + id + " denied crossing permission from distributed semaphore " + semaphoreId);
+        }
+        
+        return canCross;
     }
 
     private void handleCrossing() throws InterruptedException {
@@ -116,7 +170,7 @@ public class Pedestrian extends Agent {
             // Check if crossing is complete
             if (elapsed >= crossingTime) {
                 // Successfully crossed
-                currentSemaphore.finishCrossing();
+                finishCrossingAtSemaphore();
                 pedestrianState = PedestrianState.FINISHED;
                 state = AgentState.FINISHED;
                 System.out.println("Peatón " + id + " cruzó exitosamente");
@@ -124,9 +178,10 @@ public class Pedestrian extends Agent {
             }
 
             // Check if semaphore changed to green (should stop crossing)
-            if (currentSemaphore.getCurrentState() != SemaphoreSimulation.LightState.RED) {
+            boolean shouldStop = checkSemaphoreStateChanged();
+            if (shouldStop) {
                 System.out.println("Peatón " + id + " detenido - semáforo cambió a verde");
-                currentSemaphore.finishCrossing();
+                finishCrossingAtSemaphore();
                 pedestrianState = PedestrianState.WAITING_SEMAPHORE;
                 break;
             }
@@ -135,9 +190,48 @@ public class Pedestrian extends Agent {
         }
     }
 
+    /**
+     * Finish crossing at semaphore (distributed or local)
+     */
+    private void finishCrossingAtSemaphore() {
+        if (currentSemaphore == null) {
+            return;
+        }
+
+        boolean useDistributed = simulationCore.isDistributedModeEnabled();
+        
+        if (useDistributed) {
+            distributedClient.finishCrossing(currentSemaphore.id, id);
+        } else {
+            currentSemaphore.finishCrossing();
+        }
+    }
+
+    /**
+     * Check if semaphore state changed (distributed or local)
+     */
+    private boolean checkSemaphoreStateChanged() {
+        if (currentSemaphore == null) {
+            return true;
+        }
+
+        boolean useDistributed = simulationCore.isDistributedModeEnabled();
+        
+        if (useDistributed) {
+            LightStateDTO stateDTO = distributedClient.getCurrentState(currentSemaphore.id);
+            if (stateDTO == null) {
+                // Fallback to local check
+                return currentSemaphore.getCurrentState() != SemaphoreSimulation.LightState.RED;
+            }
+            return stateDTO.currentState != LightStateDTO.State.RED;
+        } else {
+            return currentSemaphore.getCurrentState() != SemaphoreSimulation.LightState.RED;
+        }
+    }
+
     public void stopPedestrian() {
         if (currentSemaphore != null && pedestrianState == PedestrianState.CROSSING) {
-            currentSemaphore.finishCrossing();
+            finishCrossingAtSemaphore();
         }
         stopAgent();
     }
