@@ -25,6 +25,7 @@ public class TrafficSimulationUI extends JFrame {
     private int greenTimerSemInput;
     private int yellowTimerSemInput;
     private int redTimerSemInput;
+    private int speed;
 
     public TrafficSimulationUI(TrafficSimulationCore simulation) {
         this.simulation = simulation;
@@ -65,6 +66,9 @@ public class TrafficSimulationUI extends JFrame {
         JLabel redTimerLabel = new JLabel("Red Light Timer (s): ");
         JTextField redTimerInput = new JTextField("5", 3);
 
+        JLabel speedLabel = new JLabel("Speed: ");
+        JTextField speedInput = new JTextField("750", 3);
+
         JButton startButton = new JButton("Iniciar");
         JButton stopButton = new JButton("Detener");
 
@@ -99,9 +103,10 @@ public class TrafficSimulationUI extends JFrame {
             String greenSemInput = greenTimerInput.getText();
             String yellowSemInput = yellowTimerInput.getText();
             String redSemInput = redTimerInput.getText();
+            String speedInputTxt = speedInput.getText();
 
             // Validate inputs before starting simulation
-            if (!isValidNumber(carInput) || !isValidNumber(semInput) || !isValidNumber(pedInput) || !isValidNumber(greenSemInput) || !isValidNumber(yellowSemInput) || !isValidNumber(redSemInput)) {
+            if (!isValidNumber(carInput) || !isValidNumber(semInput) || !isValidNumber(pedInput) || !isValidNumber(greenSemInput) || !isValidNumber(yellowSemInput) || !isValidNumber(redSemInput) || !isValidNumber(speedInputTxt)) {
                 JOptionPane.showMessageDialog(
                         this,
                         "Por favor ingresa valores numéricos entre 0 y 9 para todos los campos.",
@@ -111,10 +116,10 @@ public class TrafficSimulationUI extends JFrame {
                 return; // Stop here
             }
 
-            setInputs(Integer.parseInt(carInput), Integer.parseInt(semInput), Integer.parseInt(pedInput), Integer.parseInt(greenSemInput), Integer.parseInt(yellowSemInput), Integer.parseInt(redSemInput));
+            setInputs(Integer.parseInt(carInput), Integer.parseInt(semInput), Integer.parseInt(pedInput), Integer.parseInt(greenSemInput), Integer.parseInt(yellowSemInput), Integer.parseInt(redSemInput), Integer.parseInt(speedInputTxt));
 
             // Initialize and start simulation
-            simulation.initializeSimulation(getInputs()[0], getInputs()[1], 0, getInputs()[2], getInputs()[3], getInputs()[4], getInputs()[5]);
+            simulation.initializeSimulation(getInputs()[0], getInputs()[1], 0, getInputs()[2], getInputs()[3], getInputs()[4], getInputs()[5], getInputs()[6]);
             simulation.startSimulation();
 
             startButton.setEnabled(false);
@@ -137,17 +142,18 @@ public class TrafficSimulationUI extends JFrame {
         setVisible(true);
     }
 
-    public void setInputs(int numCars, int numSemaphores, int numPedestrians, int greenTimerSemInput, int yellowTimerSemInput, int redTimerSemInput){
+    public void setInputs(int numCars, int numSemaphores, int numPedestrians, int greenTimerSemInput, int yellowTimerSemInput, int redTimerSemInput, int speed){
         this.carsNumber = numCars;
         this.semaphoresNumber = numSemaphores;
         this.pedestriansNumber = numPedestrians;
         this.greenTimerSemInput = greenTimerSemInput;
         this.yellowTimerSemInput = yellowTimerSemInput;
         this.redTimerSemInput = redTimerSemInput;
+        this.speed = speed;
     }
 
     public int[] getInputs(){
-        return new int[]{carsNumber, semaphoresNumber, pedestriansNumber, greenTimerSemInput, yellowTimerSemInput, redTimerSemInput};
+        return new int[]{carsNumber, semaphoresNumber, pedestriansNumber, greenTimerSemInput, yellowTimerSemInput, redTimerSemInput, speed};
     }
 
     private void updateUI() {
@@ -629,7 +635,7 @@ public class TrafficSimulationUI extends JFrame {
     public static boolean isValidNumber(String input) {
         try {
             int value = Integer.parseInt(input.trim()); // Try to parse
-            return value > -1 && value < 10000;            // Check range 0–9
+            return value > -1 && value < 100000;            // Check range 0–9
         } catch (NumberFormatException e) {
             return false;                               // Not a valid integer
         }

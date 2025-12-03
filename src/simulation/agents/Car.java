@@ -92,7 +92,7 @@ public class Car extends Agent {
                         checkTrafficLight(currentPosition);
 
                         // Simulate time spent at this node
-                        Thread.sleep(1000);
+                        Thread.sleep(TrafficSimulationCore.vehicleSpeed);
 
                     } else {
                         // Node is occupied, wait

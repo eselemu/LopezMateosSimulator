@@ -1,5 +1,6 @@
 package simulation.agents;
 
+import simulation.TrafficSimulationCore;
 import simulation.map.MapManager;
 import simulation.map.Position;
 import simulation.map.TrafficNode;
@@ -146,7 +147,7 @@ public class Truck extends Agent {
                                 " Rear: " + currentRearNode.nodeId + " - State: " + truckState);
 
                         checkTrafficLightForTruck();
-                        Thread.sleep(1000); // Movement time
+                        Thread.sleep(TrafficSimulationCore.vehicleSpeed); // Movement time
 
                     } else {
                         truckState = TruckState.WAITING;

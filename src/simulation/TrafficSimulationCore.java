@@ -12,6 +12,7 @@ import java.util.*;
 public class TrafficSimulationCore {
 
     private static TrafficSimulationCore instance;
+    public static int vehicleSpeed;
     private List<Car> cars;
     private List<Truck> trucks;
     private List<SemaphoreSimulation> semaphores;
@@ -36,6 +37,7 @@ public class TrafficSimulationCore {
         registryPort = 1099; // Default RMI port
         semaphoreRegistry = SemaphoreRegistry.getInstance();
         distributedClient = DistributedSemaphoreClient.getInstance();
+        vehicleSpeed = 750;
     }
 
     public static TrafficSimulationCore getInstance(){
@@ -46,8 +48,9 @@ public class TrafficSimulationCore {
     // In the initializeSimulation method, add pedestrian creation:
     public void initializeSimulation(int carsNumber, int trucksNumber, int semaphoresNumber,
                                      int pedestriansNumber, int greenLightTimer,
-                                     int yellowLightTimer, int redLightTimer) {
+                                     int yellowLightTimer, int redLightTimer, int speed) {
 
+        vehicleSpeed = speed;
         mapManager.initializeSimpleMap();
 
         int[] lightsTimers = {greenLightTimer, yellowLightTimer, redLightTimer};
