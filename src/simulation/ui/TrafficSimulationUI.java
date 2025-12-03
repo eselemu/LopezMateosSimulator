@@ -89,6 +89,9 @@ public class TrafficSimulationUI extends JFrame {
         controlPanel.add(redTimerLabel);
         controlPanel.add(redTimerInput);
 
+        controlPanel.add(speedLabel);
+        controlPanel.add(speedInput);
+
         controlPanel.add(startButton);
         controlPanel.add(stopButton);
         add(controlPanel, BorderLayout.NORTH);
