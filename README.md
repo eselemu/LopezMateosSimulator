@@ -64,19 +64,19 @@ rm sources.txt
 ### Run Server
 ```batch
 # Windows
-java -cp "out/production/FinalProject;lib/gson-2.10.1.jar" ServerMain
+java -cp "out/production/FinalProject;lib/gson-2.10.1.jar" Main --server
 
 # Linux/macOS
-java -cp "out/production/FinalProject:lib/gson-2.10.1.jar" ServerMain
+java -cp "out/production/FinalProject:lib/gson-2.10.1.jar" Main --server
 ```
 
 ### Run Client
 ```batch
 # Windows
-java -cp "out/production/FinalProject;lib/gson-2.10.1.jar" ClientMain localhost 1099
+java -cp "out/production/FinalProject;lib/gson-2.10.1.jar" Main --client localhost 1099
 
 # Linux/macOS
-java -cp "out/production/FinalProject:lib/gson-2.10.1.jar" ClientMain localhost 1099
+java -cp "out/production/FinalProject:lib/gson-2.10.1.jar" Main --client localhost 1099
 ```
 
 ## Testing Across Different Computers

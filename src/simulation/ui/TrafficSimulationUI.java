@@ -39,7 +39,7 @@ public class TrafficSimulationUI extends JFrame {
 
         // Simulation Panel - now takes the entire center space
         simulationPanel = new SimulationPanel();
-        add(simulationPanel, BorderLayout.CENTER);
+        add(simulationPanel, BorderLayout.SOUTH);
 
         // REMOVED: Log area at the bottom
         // logArea = new JTextArea(10, 40);
@@ -47,26 +47,72 @@ public class TrafficSimulationUI extends JFrame {
         // JScrollPane scrollPane = new JScrollPane(logArea);
         // add(scrollPane, BorderLayout.SOUTH);
 
+
+        JPanel headerPanel = new JPanel();
+        headerPanel.setLayout(new BoxLayout(headerPanel, BoxLayout.Y_AXIS));
+        headerPanel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        JLabel titleLabel = new JLabel("Fundamentos de Programación en Paralelo");
+        titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel titleLabel2 = new JLabel("Dr. Juan Carlos López Pimentel");
+        titleLabel2.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel titleLabel3 = new JLabel("Ingeniería en Sistema y Gráficas Computacionales");
+        titleLabel3.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel titleLabel4 = new JLabel("David C. Tiscareño, H. Emiliano Flores, Jorge E. Ruiz");
+        titleLabel4.setAlignmentX(Component.CENTER_ALIGNMENT);
+        JLabel titleLabel5 = new JLabel("04 Diciembre 2025");
+        titleLabel5.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        ImageIcon originalIcon = new ImageIcon("C:/Users/David/UP/FPP/LopezMateosSimulator/src/img/up.png");
+        int newWidth = 250;
+        int newHeight = 150;
+
+        Image scaledImage = originalIcon.getImage().getScaledInstance(
+                newWidth,
+                newHeight,
+                Image.SCALE_SMOOTH  // good quality
+        );
+        ImageIcon resizedIcon = new ImageIcon(scaledImage);
+        JLabel imageLabel = new JLabel(resizedIcon);
+        imageLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
+
+        headerPanel.add(imageLabel);
+        headerPanel.add(titleLabel3);
+        headerPanel.add(titleLabel);
+        headerPanel.add(titleLabel4);
+        headerPanel.add(titleLabel2);
+        headerPanel.add(titleLabel5);
+
+        this.add(headerPanel, BorderLayout.NORTH);  // top
+
+
         // Inputs
         JLabel carLabel = new JLabel("Carros: ");
+        carLabel.setFont(carLabel.getFont().deriveFont(Font.ITALIC));
         JTextField carNumber = new JTextField("0", 3);
 
         JLabel semaphoreLabel = new JLabel("Camiones: ");
+        semaphoreLabel.setFont(semaphoreLabel.getFont().deriveFont(Font.ITALIC));
         JTextField semaphoreNumber = new JTextField("0", 3);
 
         JLabel pedestrianLabel = new JLabel("Peatones: ");
+        pedestrianLabel.setFont(pedestrianLabel.getFont().deriveFont(Font.ITALIC));
         JTextField pedestrianNumber = new JTextField("0", 3);
 
         JLabel greenTimerLabel = new JLabel("Green Light Timer (s): ");
+        greenTimerLabel.setFont(greenTimerLabel.getFont().deriveFont(Font.ITALIC));
         JTextField greenTimerInput = new JTextField("2", 3);
 
         JLabel yellowTimerLabel = new JLabel("Yellow Light Timer (s): ");
+        yellowTimerLabel.setFont(yellowTimerLabel.getFont().deriveFont(Font.ITALIC));
         JTextField yellowTimerInput = new JTextField("1", 3);
 
         JLabel redTimerLabel = new JLabel("Red Light Timer (s): ");
+        redTimerLabel.setFont(redTimerLabel.getFont().deriveFont(Font.ITALIC));
         JTextField redTimerInput = new JTextField("5", 3);
 
         JLabel speedLabel = new JLabel("Speed: ");
+        speedLabel.setFont(speedLabel.getFont().deriveFont(Font.ITALIC));
         JTextField speedInput = new JTextField("750", 3);
 
         JButton startButton = new JButton("Iniciar");
@@ -94,7 +140,7 @@ public class TrafficSimulationUI extends JFrame {
 
         controlPanel.add(startButton);
         controlPanel.add(stopButton);
-        add(controlPanel, BorderLayout.NORTH);
+        add(controlPanel, BorderLayout.CENTER);
 
         stopButton.setEnabled(false);
 
@@ -136,7 +182,7 @@ public class TrafficSimulationUI extends JFrame {
         });
 
         pack();
-        setSize(800, 850); // Increased height to accommodate larger simulation area
+        setSize(800, 1100); // Increased height to accommodate larger simulation area
         setLocationRelativeTo(null);
 
         Timer timer = new Timer(100, e -> updateUI());
@@ -421,11 +467,16 @@ public class TrafficSimulationUI extends JFrame {
             g.fillRect(semaphoreX - 3, semaphoreY - 10, 9, 8);
 
             // Draw current light
-            Color lightColor = switch(semaphore.getCurrentState()) {
-                case RED -> Color.RED;
-                case YELLOW -> Color.YELLOW;
-                case GREEN -> Color.GREEN;
-            };
+            Color lightColor = Color.BLUE;
+            try{
+                lightColor = switch (semaphore.getCurrentState()) {
+                    case RED -> Color.RED;
+                    case YELLOW -> Color.YELLOW;
+                    case GREEN -> Color.GREEN;
+                };
+            }catch (Exception e){
+                System.out.println("Error");
+            }
             g.setColor(lightColor);
             g.fillOval(semaphoreX - 2, semaphoreY - 8, 5, 5);
 

@@ -6,10 +6,16 @@ import simulation.agents.Pedestrian;
 import simulation.agents.SemaphoreSimulation;
 import simulation.agents.Truck;
 
+import javax.sound.sampled.AudioInputStream;
+import javax.sound.sampled.AudioSystem;
+import javax.sound.sampled.Clip;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.io.File;
+import java.util.ArrayList;
 import java.util.Map;
+import java.util.Random;
 
 import static simulation.agents.Car.CarState.*;
 
@@ -27,6 +33,9 @@ public class ThreadVisualizer extends JFrame implements Runnable {
     private volatile Map<Pedestrian.PedestrianState, Integer> pedestrianStateMap;
     private volatile Map<Truck.TruckState, Integer> truckStateMap;
     private final JLabel totalThreadsLabel;
+    Random rand = new Random();
+    String[] soundPaths = new String[10];
+
 
     public ThreadVisualizer() {
         this.simulation = TrafficSimulationCore.getInstance();
@@ -35,6 +44,10 @@ public class ThreadVisualizer extends JFrame implements Runnable {
         this.semaphoreStateMap = simulation.getSemStateCounts();
         this.pedestrianStateMap = simulation.getPedestrianStateCounts();
         this.truckStateMap = simulation.getTruckStateCounts();
+
+        for (int i = 0; i < 10; i++){
+            this.soundPaths[i] = ("C:/Users/David/UP/FPP/LopezMateosSimulator/src/sound/"+ i +".wav");
+        }
 
         setTitle("Visualizador de Estados de Hilos");
         setSize(600, 600);
@@ -61,9 +74,9 @@ public class ThreadVisualizer extends JFrame implements Runnable {
 
         // --- Car Table ---
         String[] carColNames = {"Car State", "Counter"};
-        String[] carRowNames = {String.valueOf(Car.CarState.MOVING), String.valueOf(Car.CarState.WAITING),
-                String.valueOf(Car.CarState.WAITING_SEMAPHORE), "nil",
-                String.valueOf(Car.CarState.FINISHED)};
+        String[] carRowNames = {String.valueOf(MOVING), String.valueOf(WAITING),
+                String.valueOf(WAITING_SEMAPHORE),
+                String.valueOf(FINISHED)};
         this.carsTable = new DefaultTableModel(carColNames, carRowNames.length);
         JTable carJTable = new JTable(this.carsTable);
         carJTable.setRowHeight(25);
@@ -93,7 +106,7 @@ public class ThreadVisualizer extends JFrame implements Runnable {
         // --- Pedestrian Table --
         String[] pedestrianColNames = {"Pedestrian State", "Counter"};
         String[] pedestrianRowNames = {String.valueOf(Pedestrian.PedestrianState.CROSSING), String.valueOf(Pedestrian.PedestrianState.WAITING_SEMAPHORE),
-                                        String.valueOf(Pedestrian.PedestrianState.FINISHED)};
+                String.valueOf(Pedestrian.PedestrianState.FINISHED)};
         this.pedestriansTable = new DefaultTableModel(pedestrianColNames, pedestrianRowNames.length);
         JTable pedestrianJTable = new JTable(this.pedestriansTable);
         pedestrianJTable.setRowHeight(25);
@@ -158,17 +171,15 @@ public class ThreadVisualizer extends JFrame implements Runnable {
             // --- Car Table ---
             carStateMap = simulation.getCarStateCounts();
             SwingUtilities.invokeLater(() -> {
-                int moving = carStateMap.getOrDefault(Car.CarState.MOVING, 0);
-                int waiting = carStateMap.getOrDefault(Car.CarState.WAITING, 0);
-                int waitingSemaphore = carStateMap.getOrDefault(Car.CarState.WAITING_SEMAPHORE, 0);
-                int inIntersection = 0;
-                int finished = carStateMap.getOrDefault(Car.CarState.FINISHED, 0);
+                int moving = carStateMap.getOrDefault(MOVING, 0);
+                int waiting = carStateMap.getOrDefault(WAITING, 0);
+                int waitingSemaphore = carStateMap.getOrDefault(WAITING_SEMAPHORE, 0);
+                int finished = carStateMap.getOrDefault(FINISHED, 0);
 
                 carsTable.setValueAt(moving, 0, 1);
                 carsTable.setValueAt(waiting, 1, 1);
                 carsTable.setValueAt(waitingSemaphore, 2, 1);
-                carsTable.setValueAt(inIntersection, 3, 1);
-                carsTable.setValueAt(finished, 4, 1);
+                carsTable.setValueAt(finished, 3, 1);
             });
 
             // --- Semaphore Table ---
@@ -207,12 +218,34 @@ public class ThreadVisualizer extends JFrame implements Runnable {
                 trucksTable.setValueAt(finished, 3, 1);
             });
 
+
+            if (this.rand.nextInt(0,10) == 1){
+                callRandomNoise();
+            }
+
             try {
                 Thread.sleep(200);
             } catch (InterruptedException e) {
                 System.out.println("ThreadVisualizer interrupted.");
                 Thread.currentThread().interrupt();
             }
+        }
+    }
+
+    public void callRandomNoise(){
+        int filePathIndex = this.rand.nextInt(0,10);
+        String filePath = this.soundPaths[filePathIndex];
+
+        try {
+            File soundFile = new File(filePath);
+            AudioInputStream audioStream = AudioSystem.getAudioInputStream(soundFile);
+
+            Clip clip = AudioSystem.getClip();
+            clip.open(audioStream);
+            clip.start();
+
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 }
