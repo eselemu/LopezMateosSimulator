@@ -63,7 +63,7 @@ public class TrafficSimulationUI extends JFrame {
         JLabel titleLabel5 = new JLabel("04 Diciembre 2025");
         titleLabel5.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        ImageIcon originalIcon = new ImageIcon("C:/Users/David/UP/FPP/LopezMateosSimulator/src/img/up.png");
+        ImageIcon originalIcon = new ImageIcon("img/up.png");
         int newWidth = 250;
         int newHeight = 150;
 

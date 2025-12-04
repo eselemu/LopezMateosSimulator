@@ -46,7 +46,8 @@ public class ThreadVisualizer extends JFrame implements Runnable {
         this.truckStateMap = simulation.getTruckStateCounts();
 
         for (int i = 0; i < 10; i++){
-            this.soundPaths[i] = ("C:/Users/David/UP/FPP/LopezMateosSimulator/src/sound/"+ i +".wav");
+
+            this.soundPaths[i] = ("sound/"+ i +".wav");
         }
 
         setTitle("Visualizador de Estados de Hilos");
